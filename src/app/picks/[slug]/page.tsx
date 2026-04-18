@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, Tag, Share2, Bookmark, Target, TrendingUp, AlertCi
 import Link from 'next/link';
 import { MdxRenderer } from '@/components/content/MdxRenderer';
 import { ShareButton } from '@/components/common/ShareButton';
+import { LinkPriceBanner } from '@/components/common/LinkPriceBanner';
 
 export async function generateStaticParams() {
     return allStockPicks.map((post) => ({
@@ -82,11 +83,15 @@ export default async function StockPickDetailPage({ params }: { params: Promise<
                     </div>
                 </header>
 
-                <div className="p-8 md:p-12 prose prose-slate max-w-none 
+                <LinkPriceBanner index={0} />
+
+                <div className="p-8 md:p-12 prose prose-slate max-w-none
                     prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
                     prose-p:leading-relaxed prose-li:my-1 prose-strong:text-foreground">
                     <MdxRenderer code={post.body.code} />
                 </div>
+
+                <LinkPriceBanner index={1} />
 
                 <footer className="px-8 md:px-12 py-8 border-t border-border bg-muted/5">
                     <div className="flex flex-wrap gap-2">

@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, Tag, Share2, Bookmark } from 'lucide-react';
 import Link from 'next/link';
 import { MdxRenderer } from '@/components/content/MdxRenderer';
 import { ShareButton } from '@/components/common/ShareButton';
+import { LinkPriceBanner } from '@/components/common/LinkPriceBanner';
 
 export async function generateStaticParams() {
     return allMarketInsights.map((post) => ({
@@ -63,9 +64,13 @@ export default async function InsightDetailPage({ params }: { params: Promise<{ 
                     </div>
                 </header>
 
+                <LinkPriceBanner index={0} />
+
                 <div className="prose prose-slate max-w-none">
                     <MdxRenderer code={post.body.code} />
                 </div>
+
+                <LinkPriceBanner index={1} />
 
                 <footer className="mt-12 pt-8 border-t border-border">
                     <div className="flex flex-wrap gap-2">
