@@ -138,7 +138,7 @@ export default async function StockReportDetailPage({ params }: { params: Promis
                 </div>
 
                 <LinkPriceBanner index={1} />
-                <LinkPriceBanner index={6} />
+                <LinkPriceBanner index={9} />
 
                 <footer className="px-6 md:px-12 py-8 border-t border-border bg-muted/5">
                     <div className="flex flex-wrap gap-2">

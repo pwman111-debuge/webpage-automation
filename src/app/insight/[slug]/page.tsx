@@ -71,7 +71,7 @@ export default async function InsightDetailPage({ params }: { params: Promise<{ 
                 </div>
 
                 <LinkPriceBanner index={1} />
-                <LinkPriceBanner index={5} />
+                <LinkPriceBanner index={9} />
 
                 <footer className="mt-12 pt-8 border-t border-border">
                     <div className="flex flex-wrap gap-2">

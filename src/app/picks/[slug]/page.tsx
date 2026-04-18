@@ -92,7 +92,7 @@ export default async function StockPickDetailPage({ params }: { params: Promise<
                 </div>
 
                 <LinkPriceBanner index={2} />
-                <LinkPriceBanner index={8} />
+                <LinkPriceBanner index={9} />
 
                 <footer className="px-8 md:px-12 py-8 border-t border-border bg-muted/5">
                     <div className="flex flex-wrap gap-2">

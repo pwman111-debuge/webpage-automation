@@ -107,7 +107,7 @@ export default async function MarketDetailPage({ params }: { params: Promise<{ s
                 </div>
 
                 <LinkPriceBanner index={0} />
-                <LinkPriceBanner index={4} />
+                <LinkPriceBanner index={9} />
 
                 <footer className="mt-12 pt-8 border-t border-border">
                     <div className="flex flex-wrap gap-2">
