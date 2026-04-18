@@ -9,13 +9,28 @@ export default function AboutPage() {
 
             <div className="prose prose-slate max-w-none space-y-8 text-muted-foreground">
                 <section>
-                    <h2 className="text-2xl font-bold text-foreground mb-4">제네시스 주식 리포트: 데이터 기반 한국 증시 인사이트</h2>
+                    <h2 className="text-2xl font-bold text-foreground mb-4">제네시스 주식 리포트: 경험과 데이터가 만나는 한국 증시 인사이트</h2>
                     <p className="text-lg leading-relaxed">
-                        제네시스 주식 리포트는 방대한 시장 데이터를 정밀하게 분석하여 투자자들에게 명확하고 신뢰할 수 있는 정보를 제공하기 위해 탄생한 플랫폼입니다. 복잡한 차트와 수치 속에 숨겨진 시장의 흐름을 읽어내고, 개인 투자자들이 보다 현명한 의사결정을 내릴 수 있도록 돕습니다.
+                        제네시스 주식 리포트는 30년간 쌓아온 임상적 관찰력과 데이터 해석 경험을 바탕으로, 정밀한 AI 분석 시스템을 결합하여 탄생한 주식 분석 플랫폼입니다. 방대한 시장 데이터 속에서 의미 있는 신호를 포착하고, 개인 투자자들이 보다 냉철하고 현명한 의사결정을 내릴 수 있도록 돕습니다.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 className="text-xl font-semibold text-foreground mb-3">운영 철학</h2>
+                    <p className="leading-relaxed">
+                        수십 년간 수많은 데이터를 분석하고 패턴을 읽어온 경험은 주식 시장에서도 그대로 적용됩니다. 감정이 아닌 데이터, 추측이 아닌 근거. 정교하게 설계된 AI 워크플로우가 시장의 수급·기술적 지표·거시 환경을 종합 분석하면, 그 결과를 오랜 투자 경험의 안목으로 한 번 더 검증합니다. 이것이 제네시스 리포트의 방식입니다.
                     </p>
                 </section>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-10">
+                    <div className="p-6 rounded-xl bg-accent/50 border border-border">
+                        <h3 className="text-lg font-bold text-foreground mb-2">AI 기반 정밀 분석</h3>
+                        <p>다단계 AI 워크플로우가 수급, 기술적 지표, 거시 환경을 동시에 분석하여 시장의 핵심 흐름을 빠르게 포착합니다.</p>
+                    </div>
+                    <div className="p-6 rounded-xl bg-accent/50 border border-border">
+                        <h3 className="text-lg font-bold text-foreground mb-2">경험 기반 검증</h3>
+                        <p>데이터 분석 결과를 다년간의 투자 경험으로 교차 검증하여 신뢰도 높은 인사이트를 제공합니다.</p>
+                    </div>
                     <div className="p-6 rounded-xl bg-accent/50 border border-border">
                         <h3 className="text-lg font-bold text-foreground mb-2">실시간 시황 데이터</h3>
                         <p>국내외 핵심 지표와 시장의 주요 흐름을 실시간으로 추적하여 가장 빠르게 전달합니다.</p>
@@ -29,7 +44,7 @@ export default function AboutPage() {
                 <section>
                     <h2 className="text-xl font-semibold text-foreground mb-3">우리의 미션</h2>
                     <p>
-                        정보의 불균형을 해소하고 전업 투자자와 일반 개인 투자자 모두가 데이터에 기반한 투자를 할 수 있는 환경을 만드는 것이 제네시스 주식 리포트의 목표입니다.
+                        정보의 불균형을 해소하고, 전업 투자자와 일반 개인 투자자 모두가 전문가 수준의 데이터 분석을 활용할 수 있는 환경을 만드는 것이 제네시스 주식 리포트의 목표입니다.
                     </p>
                 </section>
 
