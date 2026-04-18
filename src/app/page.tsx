@@ -11,6 +11,7 @@ import { RefreshButton } from "@/components/dashboard/RefreshButton";
 import { StockChart } from "@/components/common/StockChart";
 import Image from "next/image";
 import { allMarketAnalyses, allStockReports, allStockPicks } from 'contentlayer2/generated';
+import { LinkPriceBanner } from '@/components/common/LinkPriceBanner';
 
 export default async function Home() {
   const marketData = await getLatestMarketData();
@@ -87,6 +88,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* 광고 배너 1 — 히어로 섹션 하단 */}
+      <LinkPriceBanner index={0} />
 
       {/* Market Indices - Featured Charts (Restored from previous version) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -233,6 +237,9 @@ export default async function Home() {
         </div>
       </div>
 
+
+      {/* 광고 배너 2 — 콘텐츠 중간 */}
+      <LinkPriceBanner index={1} />
 
       {/* Overview Cards Section */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -394,6 +401,8 @@ export default async function Home() {
           </p>
         </div>
       </div>
+      {/* 광고 배너 3 — 페이지 하단 */}
+      <LinkPriceBanner index={2} />
     </div>
   );
 }
