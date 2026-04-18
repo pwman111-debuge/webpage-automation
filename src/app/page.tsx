@@ -90,7 +90,7 @@ export default async function Home() {
       </section>
 
       {/* 광고 배너 1 — 히어로 섹션 하단 */}
-      <LinkPriceBanner index={0} />
+      <LinkPriceBanner index={3} />
 
       {/* Market Indices - Featured Charts (Restored from previous version) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -239,7 +239,7 @@ export default async function Home() {
 
 
       {/* 광고 배너 2 — 콘텐츠 중간 */}
-      <LinkPriceBanner index={1} />
+      <LinkPriceBanner index={0} />
 
       {/* Overview Cards Section */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -402,7 +402,7 @@ export default async function Home() {
         </div>
       </div>
       {/* 광고 배너 3 — 페이지 하단 */}
-      <LinkPriceBanner index={2} />
+      <LinkPriceBanner index={4} />
     </div>
   );
 }
