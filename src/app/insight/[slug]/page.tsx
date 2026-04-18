@@ -70,6 +70,7 @@ export default async function InsightDetailPage({ params }: { params: Promise<{ 
                     <MdxRenderer code={post.body.code} />
                 </div>
 
+                <LinkPriceBanner index={1} />
                 <LinkPriceBanner index={5} />
 
                 <footer className="mt-12 pt-8 border-t border-border">

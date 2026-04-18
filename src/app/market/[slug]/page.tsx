@@ -106,6 +106,7 @@ export default async function MarketDetailPage({ params }: { params: Promise<{ s
                     <MdxRenderer code={post.body.code} />
                 </div>
 
+                <LinkPriceBanner index={0} />
                 <LinkPriceBanner index={4} />
 
                 <footer className="mt-12 pt-8 border-t border-border">

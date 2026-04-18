@@ -137,6 +137,7 @@ export default async function StockReportDetailPage({ params }: { params: Promis
                     <MdxRenderer code={post.body.code} />
                 </div>
 
+                <LinkPriceBanner index={1} />
                 <LinkPriceBanner index={6} />
 
                 <footer className="px-6 md:px-12 py-8 border-t border-border bg-muted/5">
