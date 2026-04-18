@@ -51,10 +51,10 @@ const banners = [
 export function LinkPriceBanner({ index = 0 }: { index?: number }) {
   const banner = banners[index % banners.length];
   return (
-    <div className="w-full flex justify-center my-4 overflow-hidden">
-      <a target="_blank" rel="noopener noreferrer" href={banner.href}>
+    <div className="w-full my-4 overflow-hidden">
+      <a target="_blank" rel="noopener noreferrer" href={banner.href} className="block w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={banner.src} width={728} height={90} alt="광고" style={{ maxWidth: '100%', height: 'auto' }} />
+        <img src={banner.src} width={728} height={90} alt="광고" style={{ width: '100%', height: 'auto' }} />
       </a>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={banner.track} width={1} height={1} alt="" style={{ display: 'none' }} />
