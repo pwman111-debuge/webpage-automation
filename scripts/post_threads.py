@@ -11,10 +11,9 @@ import urllib.request
 import urllib.parse
 import os
 
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "threads_config.json")
+ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 SITE_URL = "https://genesis-report.com"
 
-# MDX 파일 경로 매핑 (frontmatter 경로 → 사이트 URL 경로)
 PATH_MAP = {
     "content/picks": "/picks",
     "content/market-analysis": "/market-analysis",
@@ -22,38 +21,65 @@ PATH_MAP = {
 }
 
 
-def load_config():
-    if not os.path.exists(CONFIG_PATH):
-        print(f"[오류] config 파일 없음: {CONFIG_PATH}")
-        print("config/threads_config.json 을 생성하고 user_id, access_token을 입력하세요.")
+def load_env():
+    """루트 .env 파일에서 환경변수 로드"""
+    if not os.path.exists(ENV_PATH):
+        print(f"[오류] .env 파일 없음: {ENV_PATH}")
+        print(".env 파일을 생성하고 THREADS_USER_ID, THREADS_ACCESS_TOKEN을 입력하세요.")
         sys.exit(1)
-    with open(CONFIG_PATH, encoding="utf-8") as f:
-        return json.load(f)
+
+    env = {}
+    with open(ENV_PATH, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, val = line.partition("=")
+                env[key.strip()] = val.strip()
+
+    user_id = env.get("THREADS_USER_ID", "")
+    token = env.get("THREADS_ACCESS_TOKEN", "")
+
+    if not user_id or not token or user_id.startswith("여기에"):
+        print("[오류] .env 파일에 THREADS_USER_ID, THREADS_ACCESS_TOKEN을 입력하세요.")
+        sys.exit(1)
+
+    return user_id, token
 
 
-def save_config(config):
-    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(config, f, ensure_ascii=False, indent=2)
+def save_token(new_token):
+    """갱신된 토큰을 .env 파일에 저장"""
+    with open(ENV_PATH, encoding="utf-8") as f:
+        lines = f.readlines()
+
+    updated = []
+    for line in lines:
+        if line.strip().startswith("THREADS_ACCESS_TOKEN="):
+            updated.append(f"THREADS_ACCESS_TOKEN={new_token}\n")
+        else:
+            updated.append(line)
+
+    with open(ENV_PATH, "w", encoding="utf-8") as f:
+        f.writelines(updated)
 
 
-def refresh_token(config):
+def refresh_token(user_id, token):
     """장기 액세스 토큰 자동 갱신 (60일 유효, 매 포스팅 시 갱신)"""
     url = "https://graph.threads.net/refresh_access_token"
     params = {
         "grant_type": "th_refresh_token",
-        "access_token": config["access_token"],
+        "access_token": token,
     }
     req = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}")
     try:
         with urllib.request.urlopen(req) as r:
             data = json.loads(r.read().decode("utf-8"))
-        config["access_token"] = data["access_token"]
-        save_config(config)
+        new_token = data["access_token"]
+        save_token(new_token)
         print("[토큰] 액세스 토큰 자동 갱신 완료")
+        return new_token
     except Exception as e:
         print(f"[주의] 토큰 갱신 실패 (기존 토큰으로 계속 진행): {e}")
-    return config
+        return token
 
 
 def parse_frontmatter(mdx_path):
@@ -76,7 +102,6 @@ def parse_frontmatter(mdx_path):
 
 def build_post_url(mdx_path):
     """MDX 파일 경로 → 사이트 URL 변환"""
-    # 경로 구분자 통일
     normalized = mdx_path.replace("\\", "/")
     filename = os.path.splitext(os.path.basename(normalized))[0]
 
@@ -93,7 +118,6 @@ def build_post_text(fm, post_url):
     summary = fm.get("summary", "")
     tags = fm.get("tags", "")
 
-    # tags에서 해시태그 생성
     hashtags = ""
     if tags:
         tag_list = re.findall(r'"([^"]+)"', tags)
@@ -105,18 +129,14 @@ def build_post_text(fm, post_url):
         text += f"\n\n{hashtags}"
     text += f"\n\n🔗 {post_url}"
 
-    # Threads 최대 500자 제한
     if len(text) > 490:
         text = text[:487] + "..."
 
     return text
 
 
-def post_to_threads(config, text):
+def post_to_threads(user_id, token, text):
     """Threads API 2단계 포스팅"""
-    user_id = config["user_id"]
-    token = config["access_token"]
-
     # 1단계: 미디어 컨테이너 생성
     url1 = f"https://graph.threads.net/v1.0/{user_id}/threads"
     params1 = {
@@ -137,7 +157,7 @@ def post_to_threads(config, text):
         sys.exit(1)
 
     print(f"[Threads] 컨테이너 생성: {creation_id}")
-    time.sleep(2)  # API 안정화 대기
+    time.sleep(2)
 
     # 2단계: 게시
     url2 = f"https://graph.threads.net/v1.0/{user_id}/threads_publish"
@@ -152,8 +172,7 @@ def post_to_threads(config, text):
     with urllib.request.urlopen(req2) as r:
         result2 = json.loads(r.read().decode("utf-8"))
 
-    post_id = result2.get("id")
-    return post_id
+    return result2.get("id")
 
 
 def main():
@@ -169,9 +188,9 @@ def main():
 
     print(f"[Threads] 포스팅 시작: {mdx_path}")
 
-    # 설정 로드 및 토큰 자동 갱신
-    config = load_config()
-    config = refresh_token(config)
+    # .env에서 로드 후 토큰 자동 갱신
+    user_id, token = load_env()
+    token = refresh_token(user_id, token)
 
     # MDX 파싱
     fm = parse_frontmatter(mdx_path)
@@ -180,8 +199,7 @@ def main():
 
     print(f"[Threads] 포스팅 내용 미리보기:\n{'='*40}\n{text}\n{'='*40}")
 
-    # 포스팅
-    post_id = post_to_threads(config, text)
+    post_id = post_to_threads(user_id, token, text)
     print(f"[Threads] 포스팅 완료! Post ID: {post_id}")
     print(f"[Threads] 확인: https://www.threads.net/post/{post_id}")
 
