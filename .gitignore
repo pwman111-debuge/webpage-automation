@@ -51,3 +51,6 @@ next-env.d.ts
 종목분석/
 .claude/
 CLAUDE.md
+
+# 민감 정보 (절대 push 안 함)
+config/
