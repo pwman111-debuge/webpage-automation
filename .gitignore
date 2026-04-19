@@ -42,3 +42,12 @@ next-env.d.ts
 
 # contentlayer
 .contentlayer
+
+# 자동화 워크스페이스 (stockanalysis repo에 push 안 함)
+시황분석/
+단기유망종목/
+중기유망종목/
+장기유망종목/
+종목분석/
+.claude/
+CLAUDE.md
