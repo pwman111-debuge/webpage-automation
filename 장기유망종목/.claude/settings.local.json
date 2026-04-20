@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ':*)",
+      "Bash(python3 -c ':*)",
+      "Bash(python3:*)",
+      "Bash(python -X utf8 skills/genesis-quant-skill/scripts/gene-scan.py:*)",
+      "Bash(node -e ':*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "WebSearch",
+      "WebFetch(domain:finance.naver.com)",
+      "WebFetch(domain:kr.investing.com)"
+    ]
+  }
+}
