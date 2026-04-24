@@ -16,8 +16,8 @@ SITE_URL = "https://genesis-report.com"
 
 PATH_MAP = {
     "content/picks": "/picks",
-    "content/market-analysis": "/market-analysis",
-    "content/stock-reports": "/stock-reports",
+    "content/market-analysis": "/market",
+    "content/stock-reports": "/analysis",
 }
 
 
