@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
     if (!post) return {};
 
-    const imageUrl = '/og-image.png'; // thumbnail 필드가 없으므로 기본 이미지 사용
+    const imageUrl = post.thumbnail || 'https://genesis-report.com/og-image.png';
 
     return {
         title: `${post.title} | KRX Intelligence`,
