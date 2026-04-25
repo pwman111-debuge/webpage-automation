@@ -99,7 +99,7 @@ def build_post_text(fm, post_url):
     return text
 
 
-def post_to_linkedin(token, person_urn, text, post_url, title="제네시스 주식 리포트"):
+def post_to_linkedin(token, person_urn, text, post_url, title="제네시스 주식 리포트", fm_summary=""):
     """LinkedIn UGC Posts API로 포스팅 (이미지 썸네일 포함)"""
     url = "https://api.linkedin.com/v2/ugcPosts"
 
@@ -115,7 +115,7 @@ def post_to_linkedin(token, person_urn, text, post_url, title="제네시스 주�
                         "status": "READY",
                         "originalUrl": post_url,
                         "title": {"text": title},
-                        "thumbnails": [{"resolvedUrl": OG_IMAGE_URL}],
+                        "description": {"text": fm_summary},
                     }
                 ],
             }
@@ -161,7 +161,7 @@ def main():
 
     print(f"[LinkedIn] 포스팅 내용 미리보기:\n{'='*40}\n{text}\n{'='*40}")
 
-    post_urn = post_to_linkedin(token, person_urn, text, post_url, title=fm.get("title", "제네시스 주식 리포트"))
+    post_urn = post_to_linkedin(token, person_urn, text, post_url, title=fm.get("title", "제네시스 주식 리포트"), fm_summary=fm.get("summary", ""))
     print(f"[LinkedIn] 포스팅 완료! URN: {post_urn}")
 
 
