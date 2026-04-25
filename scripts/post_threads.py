@@ -135,12 +135,16 @@ def build_post_text(fm, post_url):
     return text
 
 
+OG_IMAGE_URL = "https://genesis-report.com/og-image.png"
+
+
 def post_to_threads(user_id, token, text):
-    """Threads API 2단계 포스팅"""
+    """Threads API 2단계 포스팅 (이미지 + 텍스트)"""
     # 1단계: 미디어 컨테이너 생성
     url1 = f"https://graph.threads.net/v1.0/{user_id}/threads"
     params1 = {
-        "media_type": "TEXT",
+        "media_type": "IMAGE",
+        "image_url": OG_IMAGE_URL,
         "text": text,
         "access_token": token,
     }

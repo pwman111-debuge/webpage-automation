@@ -12,6 +12,7 @@ import urllib.parse
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 SITE_URL = "https://genesis-report.com"
+OG_IMAGE_URL = "https://genesis-report.com/og-image.png"
 
 PATH_MAP = {
     "content/picks": "/picks",
@@ -98,8 +99,8 @@ def build_post_text(fm, post_url):
     return text
 
 
-def post_to_linkedin(token, person_urn, text, post_url):
-    """LinkedIn UGC Posts API로 포스팅"""
+def post_to_linkedin(token, person_urn, text, post_url, title="제네시스 주식 리포트"):
+    """LinkedIn UGC Posts API로 포스팅 (이미지 썸네일 포함)"""
     url = "https://api.linkedin.com/v2/ugcPosts"
 
     payload = {
@@ -113,6 +114,8 @@ def post_to_linkedin(token, person_urn, text, post_url):
                     {
                         "status": "READY",
                         "originalUrl": post_url,
+                        "title": {"text": title},
+                        "thumbnails": [{"resolvedUrl": OG_IMAGE_URL}],
                     }
                 ],
             }
@@ -158,7 +161,7 @@ def main():
 
     print(f"[LinkedIn] 포스팅 내용 미리보기:\n{'='*40}\n{text}\n{'='*40}")
 
-    post_urn = post_to_linkedin(token, person_urn, text, post_url)
+    post_urn = post_to_linkedin(token, person_urn, text, post_url, title=fm.get("title", "제네시스 주식 리포트"))
     print(f"[LinkedIn] 포스팅 완료! URN: {post_urn}")
 
 
