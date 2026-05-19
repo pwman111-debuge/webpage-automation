@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { MdxRenderer } from '@/components/content/MdxRenderer';
 import { ShareButton } from '@/components/common/ShareButton';
 import { CoupangBanner } from '@/components/common/CoupangBanner';
-
+import { CoupangDisclosure } from '@/components/common/CoupangDisclosure';
 export async function generateStaticParams() {
     return allStockReports.map((post) => ({
         slug: post._raw.flattenedPath.split('/').pop() || '',
@@ -131,6 +131,9 @@ export default async function StockReportDetailPage({ params }: { params: Promis
                     </div>
                 </header>
 
+                <div className="px-6 md:px-12 pt-6">
+                    <CoupangDisclosure />
+                </div>
 
                 <div className="p-6 md:p-12 prose prose-slate max-w-none prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-p:leading-relaxed break-words overflow-x-hidden">
                     <MdxRenderer code={post.body.code} />

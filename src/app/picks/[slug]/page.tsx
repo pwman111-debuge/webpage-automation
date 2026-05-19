@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { MdxRenderer } from '@/components/content/MdxRenderer';
 import { ShareButton } from '@/components/common/ShareButton';
 import { CoupangBanner } from '@/components/common/CoupangBanner';
-
+import { CoupangDisclosure } from '@/components/common/CoupangDisclosure';
 export async function generateStaticParams() {
     return allStockPicks.map((post) => ({
         slug: post._raw.flattenedPath.split('/').pop() || '',
@@ -83,6 +83,9 @@ export default async function StockPickDetailPage({ params }: { params: Promise<
                     </div>
                 </header>
 
+                <div className="px-8 md:px-12 pt-8">
+                    <CoupangDisclosure />
+                </div>
 
                 <div className="p-8 md:p-12 prose prose-slate max-w-none
                     prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg

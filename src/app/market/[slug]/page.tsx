@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { MdxRenderer } from '@/components/content/MdxRenderer';
 import { ShareButton } from '@/components/common/ShareButton';
 import { CoupangBanner } from '@/components/common/CoupangBanner';
-
+import { CoupangDisclosure } from '@/components/common/CoupangDisclosure';
 export async function generateStaticParams() {
     return allMarketAnalyses.map((post) => ({
         slug: post._raw.flattenedPath.split('/').pop() || '',
@@ -100,6 +100,7 @@ export default async function MarketDetailPage({ params }: { params: Promise<{ s
                     </div>
                 </header>
 
+                <CoupangDisclosure />
 
                 <div className="prose prose-slate max-w-none">
                     <MdxRenderer code={post.body.code} />
