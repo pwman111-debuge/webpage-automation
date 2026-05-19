@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { MdxRenderer } from '@/components/content/MdxRenderer';
 import { ShareButton } from '@/components/common/ShareButton';
 import { CoupangBanner } from '@/components/common/CoupangBanner';
+import { CoupangDisclosure } from '@/components/common/CoupangDisclosure';
 
 export async function generateStaticParams() {
     return allStockPickFeedbacks.map((post) => ({
@@ -79,6 +80,10 @@ export default async function PerformanceReviewDetailPage({ params }: { params: 
                     </div>
                 </header>
 
+
+                <div className="px-10 md:px-16 pt-10">
+                    <CoupangDisclosure />
+                </div>
 
                 <div className="p-10 md:p-16 prose prose-slate max-w-none
                     prose-headings:font-black prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl
