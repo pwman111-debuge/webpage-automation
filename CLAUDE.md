@@ -79,6 +79,32 @@
   - 코드/워크플로우 → `pwman111-debuge/webpage-automation`
 - Push 완료 후 커밋 해시 및 경로 보고
 
+### 이중 .git 디렉토리 구조 (2026-05-19 도입)
+
+같은 작업트리(`웹페이지자동화/`)를 두 git 디렉토리가 분리 추적:
+
+| Git dir | Remote | 추적 대상 | 제외 |
+|---------|--------|----------|------|
+| `.git/` | origin → stockanalysis | `content/`, 사이트 빌드 자산 | 워크플로우 폴더(.git/info/exclude) |
+| `.git-code/` | origin → webpage-automation | 워크플로우 폴더, scripts/, package.json 등 | content/, src/, public/ (.git-code/info/exclude) |
+
+**Push 명령어 (반드시 구분해서 사용):**
+
+```powershell
+# 보고서·사이트 push (Cloudflare 배포 트리거)
+git push origin main
+
+# 코드·워크플로우 push (webpage-automation 백업)
+powershell -File scripts/push-code.ps1 -Message "feat: ..."
+# 또는 직접:
+git --git-dir=.git-code add .
+git --git-dir=.git-code commit -m "feat: ..."
+git --git-dir=.git-code push origin main
+```
+
+- `legacy-mirror` 브랜치에 이전 stockanalysis 미러 히스토리 백업 보존
+- `.git-code/` 자체는 `.gitignore`로 stockanalysis에서 제외됨
+
 ---
 
 ## ⚠️ 폴더 구조 엄격 규칙 (반드시 준수)
