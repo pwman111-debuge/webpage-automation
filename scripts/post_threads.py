@@ -115,7 +115,7 @@ def build_post_url(mdx_path):
 
 
 def build_post_text(fm, post_url):
-    """Threads 포스팅 텍스트 생성"""
+    """Threads 포스팅 텍스트 생성 — URL과 해시태그는 끝까지 보존"""
     title = fm.get("title", "제네시스 리포트")
     summary = fm.get("summary", "")
     tags = fm.get("tags", "")
@@ -126,15 +126,24 @@ def build_post_text(fm, post_url):
         if tag_list:
             hashtags = " ".join([f"#{t.replace(' ', '')}" for t in tag_list[:4]])
 
-    text = f"{title}\n\n{summary}"
-    if hashtags:
-        text += f"\n\n{hashtags}"
-    text += f"\n\n🔗 {post_url}"
+    MAX_LEN = 490
 
-    if len(text) > 490:
-        text = text[:487] + "..."
+    url_part = f"\n\n🔗 {post_url}"
+    hashtag_part = f"\n\n{hashtags}" if hashtags else ""
+    tail = hashtag_part + url_part
 
-    return text
+    available = MAX_LEN - len(tail)
+    title_max = min(120, max(60, available // 3))
+    if len(title) > title_max:
+        title = title[:title_max - 3] + "..."
+
+    header = f"{title}\n\n"
+    body_max = available - len(header)
+
+    if len(summary) > body_max:
+        summary = summary[:body_max - 3] + "..."
+
+    return header + summary + tail
 
 
 OG_IMAGE_URL = "https://genesis-report.com/og-image.png"
