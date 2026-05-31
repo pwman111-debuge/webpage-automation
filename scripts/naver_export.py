@@ -77,6 +77,17 @@ def build_backlink(mdx_path: str):
     return SITE_URL, None
 
 
+def scrub_brand(text: str) -> str:
+    """출력에서 '제네시스' 브랜드 용어 제거 (네이버 블로그를 genesis 브랜드와 분리)."""
+    if not text:
+        return text
+    text = text.replace("[제네시스 리포트]", "").replace("제네시스 리포트", "")
+    text = text.replace("- 제네시스 모멘텀", "").replace("제네시스 모멘텀", "모멘텀")
+    text = re.sub(r"제네시스\s*", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip(" -—·|\t").strip()
+
+
 def strip_noise(body: str) -> str:
     """import/export/JSX 컴포넌트 줄 제거 (본문에 거의 없지만 안전장치)."""
     out = []
@@ -128,14 +139,14 @@ def render(mdx_path: str) -> int:
         return 1
     text = p.read_text(encoding="utf-8")
     fm, body = parse_frontmatter(text)
-    title = fm.get("title", p.stem)
-    summary = fm.get("summary", "")
+    title = scrub_brand(fm.get("title", p.stem))
+    summary = scrub_brand(fm.get("summary", ""))
     backlink, category = build_backlink(mdx_path)
     if category is None:
         print(f"[경고] 매핑되는 카테고리 없음: {mdx_path}")
         category = "(수동 선택)"
 
-    body = strip_noise(body)
+    body = scrub_brand(strip_noise(body))
     summary_md, truncated = summarize_body(body)
 
     md = MarkdownIt("commonmark")
