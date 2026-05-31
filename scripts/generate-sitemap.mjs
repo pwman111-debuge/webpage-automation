@@ -15,16 +15,25 @@ const staticPages = [
     { url: '/', priority: '1.0', changefreq: 'daily' },
     { url: '/market', priority: '0.8', changefreq: 'daily' },
     { url: '/analysis', priority: '0.8', changefreq: 'daily' },
+    { url: '/insight', priority: '0.8', changefreq: 'daily' },
+    { url: '/picks', priority: '0.8', changefreq: 'daily' },
+    { url: '/picks/feedback', priority: '0.7', changefreq: 'weekly' },
     { url: '/education', priority: '0.8', changefreq: 'daily' },
     { url: '/calendar', priority: '0.8', changefreq: 'daily' },
-    { url: '/picks', priority: '0.8', changefreq: 'daily' },
+    { url: '/about', priority: '0.5', changefreq: 'monthly' },
+    { url: '/contact', priority: '0.5', changefreq: 'monthly' },
+    { url: '/privacy', priority: '0.3', changefreq: 'yearly' },
+    { url: '/terms', priority: '0.3', changefreq: 'yearly' },
 ];
 
+// 주의: route/dir 매핑은 contentlayer.config.ts 의 computedFields.url 과 반드시 일치시킬 것
 const contentMappings = [
     { dir: 'market-analysis', route: 'market', priority: '0.6', changefreq: 'weekly' },
     { dir: 'stock-reports', route: 'analysis', priority: '0.6', changefreq: 'weekly' },
+    { dir: 'market-insight', route: 'insight', priority: '0.6', changefreq: 'weekly' },
     { dir: 'education', route: 'education', priority: '0.5', changefreq: 'monthly' },
     { dir: 'picks', route: 'picks', priority: '0.7', changefreq: 'daily' },
+    { dir: 'picks-feedback', route: 'picks/feedback', priority: '0.6', changefreq: 'weekly' },
 ];
 
 function generateSitemap() {

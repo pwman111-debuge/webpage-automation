@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/generate-sitemap.mjs && node scripts/generate-rss.mjs && node build-content.js && next build",
+    "build": "node scripts/generate-sitemap.mjs && node scripts/generate-rss.mjs && node scripts/generate-llms.mjs && node build-content.js && next build",
     "postinstall": "node build-content.js",
     "sitemap": "node scripts/generate-sitemap.mjs",
     "start": "next start",
