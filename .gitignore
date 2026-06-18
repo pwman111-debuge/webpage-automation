@@ -55,3 +55,8 @@ config/
 
 # 코드 백업용 별도 git 디렉토리 (webpage-automation 전용)
 .git-code/
+
+# 네이버 블로그 자동화 (비밀·세션·산출물 — 절대 커밋 금지)
+scripts/.env.naver
+scripts/.naver_profile/
+naver_out/
