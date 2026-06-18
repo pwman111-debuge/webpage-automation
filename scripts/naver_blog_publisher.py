@@ -1,53 +1,42 @@
-"""네이버 블로그 자동 발행기 (Playwright)
+"""네이버 블로그 자동 발행기 (Playwright) — 당일 발행 리포트 요약본 일괄 게시.
 
-naver_export.py가 만든 naver_out/*.html (요약본)을 네이버 블로그에 자동 발행한다.
+트리거: "네이버 블로그 포스팅하자"
+→ 오늘(또는 --date) content/ 하위에 생성된 모든 리포트를 찾아, 각각 '요약본 + 원문
+   백링크' 형태로 blog.naver.com/pwman11 에 카테고리·태그까지 자동 발행한다.
 
-설계 원칙
-─────────
-1. 비밀번호 하드코딩 금지 → scripts/.env.naver (gitignore됨)에서 로드.
-2. 세션 영속화 → scripts/.naver_profile/ 에 로그인 쿠키 보존. 최초 1회만 로그인,
-   이후 실행은 로그인 단계를 건너뛴다(네이버 봇 탐지·캡차 노출 최소화).
-3. 로그인은 '클립보드 붙여넣기' 방식 → 키 입력 탐지(키로깅 방지) 우회.
-4. 캡차/기기등록 등 예외는 headed 모드에서 사람이 개입할 수 있게 일시정지.
+2026-06-18 라이브 실증으로 확정된 방법을 그대로 코드화했다:
+  • 로그인  : #id/#pw에 네이티브 setter로 value 주입 후 #log.login 클릭 (캡차 없이 통과,
+              세션은 .naver_profile/에 영속 → 이후 실행은 로그인 생략).
+  • 본문입력: SmartEditor ONE은 execCommand·합성 paste를 무시한다. 시스템 클립보드
+              (PowerShell Set-Clipboard) + 실제 Ctrl+V(page.keyboard) 만 반영됨.
+  • 취소선  : 진입 시 취소선 토글이 켜져 있으면 붙여넣기 텍스트가 <strike>로 감싸진다.
+              붙여넣기 전 반드시 토글 OFF 확인/해제.
+  • 카테고리: 발행패널 '카테고리 목록 버튼' → 라벨 라디오 JS click (공백 정규화 매칭).
+  • 발행확정: data-testid="seOnePublishBtn".
 
-모드
-─────
-  (기본) assist   : 자동 로그인 + 글쓰기 페이지 오픈 + 제목/본문을 클립보드에 적재.
-                    → 에디터에 직접 붙여넣고(Ctrl+V) 발행은 사람이 클릭. (가장 안전·확실)
-  --publish       : 제목/본문/카테고리/발행까지 전 과정 자동 시도(베스트에포트).
-  --draft         : 발행 대신 임시저장까지만.
+의존성(최초 1회): pip install playwright beautifulsoup4 && playwright install chromium
 
-사용법
-──────
-  # 의존성(최초 1회): pip install playwright python-dotenv && playwright install chromium
-  python -X utf8 scripts/naver_blog_publisher.py                      # 오늘자 4건, assist 모드
-  python -X utf8 scripts/naver_blog_publisher.py --publish            # 전자동 발행 시도
-  python -X utf8 scripts/naver_blog_publisher.py naver_out/2026-06-18-samsung-electronics.html
-  python -X utf8 scripts/naver_blog_publisher.py --date 20260618 --publish
-
-주의: 네이버 SmartEditor ONE은 iframe·버전 변동이 잦다. --publish 첫 실행 시
-      naver_out/_shots/ 의 단계별 스크린샷으로 셀렉터를 점검하라. 실패해도 브라우저는
-      열린 채로 두어 수동 보정이 가능하다.
+사용법:
+  python -X utf8 scripts/naver_blog_publisher.py                 # 오늘자 전체 발행
+  python -X utf8 scripts/naver_blog_publisher.py --date 20260618 # 특정일
+  python -X utf8 scripts/naver_blog_publisher.py --draft         # 임시저장만(테스트)
+  python -X utf8 scripts/naver_blog_publisher.py content/picks/20260618-genesis-report.mdx
 """
 from __future__ import annotations
 
 import argparse
 import datetime as _dt
-import json
 import os
+import re
+import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
-
-try:
-    from bs4 import BeautifulSoup
-except ImportError:
-    print("[오류] beautifulsoup4 필요: pip install beautifulsoup4")
-    raise SystemExit(1)
 
 try:
     from playwright.sync_api import TimeoutError as PWTimeout
@@ -58,311 +47,326 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
-OUT_DIR = ROOT / "naver_out"
-SHOT_DIR = OUT_DIR / "_shots"
 PROFILE_DIR = SCRIPTS / ".naver_profile"
 ENV_FILE = SCRIPTS / ".env.naver"
-MOD = "Meta" if sys.platform == "darwin" else "Control"
+SITE_URL = "https://genesis-report.com"
+BLOG_ID = "pwman11"
+
+# content 폴더 → (사이트 URL 경로, 네이버 카테고리명).  발행 순서이기도 하다.
+FOLDER_MAP = [
+    ("content/market-analysis", "/market", "시황분석"),
+    ("content/picks", "/picks", "유망종목"),
+    ("content/stock-reports", "/analysis", "종목리포트"),
+    ("content/market-insight", "/insight", "마켓인사이트"),
+    ("content/education", "/education", "투자교육"),
+    ("content/picks-feedback", "/picks/feedback", "투자성과 리포트"),
+]
 
 
-# ── 자격증명 로드 ──────────────────────────────────────────
+# ── 자격증명 ───────────────────────────────────────────────
 def load_creds() -> tuple[str, str]:
-    nid = os.environ.get("NAVER_ID")
-    npw = os.environ.get("NAVER_PW")
+    nid, npw = os.environ.get("NAVER_ID"), os.environ.get("NAVER_PW")
     if (not nid or not npw) and ENV_FILE.exists():
         for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
             k, _, v = line.partition("=")
-            k, v = k.strip(), v.strip()
-            if k == "NAVER_ID" and not nid:
-                nid = v
-            elif k == "NAVER_PW" and not npw:
-                npw = v
+            if k.strip() == "NAVER_ID" and not nid:
+                nid = v.strip()
+            elif k.strip() == "NAVER_PW" and not npw:
+                npw = v.strip()
     if not nid or not npw:
-        print(f"[오류] 자격증명 없음. {ENV_FILE} 에 NAVER_ID / NAVER_PW 를 넣거나 환경변수로 설정하라.")
+        print(f"[오류] 자격증명 없음 → {ENV_FILE} 에 NAVER_ID / NAVER_PW 설정")
         raise SystemExit(1)
     return nid, npw
 
 
-# ── 발행할 HTML 파일 선택 ──────────────────────────────────
-def pick_files(args) -> list[Path]:
-    if args.files:
-        return [Path(f) if Path(f).is_absolute() else (ROOT / f) for f in args.files]
-    date_str = args.date or _dt.date.today().strftime("%Y%m%d")
-    # naver_out 파일명에는 2026-06-18 또는 20260618 형태가 섞여 있음 → 둘 다 매칭
-    dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-    hits = [
-        p for p in sorted(OUT_DIR.glob("*.html"))
-        if date_str in p.name or dashed in p.name
-    ]
-    if not hits:
-        print(f"[경고] {OUT_DIR} 에서 날짜({date_str}/{dashed}) 매칭 HTML 없음.")
-    return hits
+# ── 시스템 클립보드 (PowerShell, 한글 안전) ────────────────
+def set_clipboard(text: str):
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".txt", encoding="utf-8") as f:
+        f.write(text)
+        path = f.name
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             f"Set-Clipboard -Value (Get-Content -LiteralPath '{path}' -Raw -Encoding UTF8).TrimEnd()"],
+            check=True, capture_output=True,
+        )
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
 
 
-# ── 내보낸 HTML에서 제목·카테고리·본문 추출 ────────────────
-def parse_export(html_path: Path) -> dict:
-    soup = BeautifulSoup(html_path.read_text(encoding="utf-8"), "html.parser")
-    # 제목: <div ...><b>제목:</b> TITLE</div>
-    title = ""
-    for div in soup.find_all("div"):
-        b = div.find("b")
-        if b and b.get_text(strip=True).startswith("제목"):
-            title = div.get_text(" ", strip=True).split(":", 1)[-1].strip()
-            break
-    if not title:
-        title = (soup.title.get_text(strip=True) if soup.title else html_path.stem)
-    # 카테고리: <div class="guide"> ... 추천 카테고리: CATEGORY</div>
-    category = ""
-    guide = soup.find("div", class_="guide")
-    if guide:
-        gt = guide.get_text(" ", strip=True)
-        if "추천 카테고리:" in gt:
-            category = gt.split("추천 카테고리:", 1)[1].strip().split("·")[0].strip()
-    # 본문: #naver-body (안내·제목 박스는 그 바깥이라 자동 제외됨)
-    body_el = soup.find(id="naver-body")
-    body_html = body_el.decode_contents() if body_el else ""
-    body_text = body_el.get_text("\n", strip=True) if body_el else ""
-    return {"title": title, "category": category, "body_html": body_html, "body_text": body_text}
+# ── frontmatter & 콘텐츠 ───────────────────────────────────
+def parse_frontmatter(text: str):
+    if not text.startswith("---"):
+        return {}, text
+    end = text.find("\n---", 3)
+    if end == -1:
+        return {}, text
+    raw, body = text[3:end].strip(), text[end + 4:].lstrip("\n")
+    fm = {}
+    for line in raw.splitlines():
+        if ":" not in line:
+            continue
+        k, _, v = line.partition(":")
+        k, v = k.strip(), v.strip()
+        if v.startswith("[") and v.endswith("]"):
+            parts = [x.strip().strip('"').strip("'").strip() for x in v[1:-1].split(",")]
+            fm[k] = [x for x in parts if x]
+        else:
+            fm[k] = v.strip().strip('"').strip("'")
+    return fm, body
 
 
-# ── 클립보드 헬퍼 ──────────────────────────────────────────
-def clip_write_text(page, text: str):
-    page.evaluate("(t) => navigator.clipboard.writeText(t)", text)
+def scrub_brand(text: str) -> str:
+    if not text:
+        return ""
+    text = text.replace("[제네시스 리포트]", "").replace("제네시스 리포트", "")
+    text = text.replace("- 제네시스 모멘텀", "").replace("제네시스 모멘텀", "모멘텀")
+    text = re.sub(r"제네시스\s*", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    return text.strip(" -—·|\t").strip()
 
 
-def clip_write_html(page, html: str, text: str):
-    page.evaluate(
-        """async ([html, text]) => {
-            const item = new ClipboardItem({
-                'text/html': new Blob([html], {type: 'text/html'}),
-                'text/plain': new Blob([text], {type: 'text/plain'}),
-            });
-            await navigator.clipboard.write([item]);
-        }""",
-        [html, text],
+def make_title(raw: str) -> str:
+    t = scrub_brand(raw)
+    if ":" in t:                       # 핵심 헤드라인만 (콜론 이후 상세 절단)
+        t = t.split(":", 1)[0].strip()
+    if len(t) > 60:
+        cut = t[:60]
+        for sep in ["—", "·", ", ", " "]:
+            i = cut.rfind(sep)
+            if i > 30:
+                cut = cut[:i]
+                break
+        t = cut.strip(" -—·,")
+    return t
+
+
+def backlink_for(rel_path: str) -> tuple[str, str]:
+    norm = rel_path.replace("\\", "/")
+    fname = os.path.splitext(os.path.basename(norm))[0]
+    for prefix, url_path, cat in FOLDER_MAP:
+        if (prefix + "/") in (norm + "/"):     # 정확한 디렉토리 매칭 (picks vs picks-feedback)
+            return f"{SITE_URL}{url_path}/{fname}", cat
+    return SITE_URL, "(수동 선택)"
+
+
+def build_post(mdx_path: Path) -> dict:
+    fm, _ = parse_frontmatter(mdx_path.read_text(encoding="utf-8"))
+    rel = str(mdx_path.relative_to(ROOT)) if mdx_path.is_absolute() else str(mdx_path)
+    backlink, category = backlink_for(rel)
+    title = make_title(fm.get("title", mdx_path.stem))
+    summary = scrub_brand(fm.get("summary", ""))
+    body = (
+        f"{summary}\n\n"
+        f"📊 전체 리포트 보기 → {backlink}\n\n"
+        f"본 글은 정보 제공 목적이며, 투자 판단과 책임은 투자자 본인에게 있습니다."
     )
+    raw_tags = fm.get("tags", []) if isinstance(fm.get("tags"), list) else []
+    tags = []
+    for t in raw_tags:
+        s = scrub_brand(t)
+        if s and len(s) <= 18 and s not in tags:
+            tags.append(s)
+    tags = tags[:5] or [category.replace(" ", "")]
+    return {"title": title, "body": body, "category": category, "tags": tags,
+            "backlink": backlink, "src": mdx_path}
 
 
-def paste_text(page, selector, text, frame=None):
-    target = frame or page
-    target.click(selector)
-    clip_write_text(page, text)
-    page.keyboard.press(f"{MOD}+V")
+# ── 발행 대상 수집 ─────────────────────────────────────────
+def collect_today(date_str: str) -> list[Path]:
+    dashed = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+    found = []
+    for prefix, _u, _c in FOLDER_MAP:
+        d = ROOT / prefix
+        if not d.exists():
+            continue
+        for p in sorted(d.glob("*.mdx")):
+            if date_str in p.name or dashed in p.name:
+                found.append(p)
+    return found
 
 
-# ── 로그인 ─────────────────────────────────────────────────
-def already_logged_in(page) -> bool:
+# ── 네이버 로그인 ──────────────────────────────────────────
+def logged_in(page) -> bool:
     try:
         page.goto("https://www.naver.com", wait_until="domcontentloaded", timeout=20000)
-        # 로그인 상태면 '로그아웃' 또는 내 정보 영역이 존재
-        return page.locator("a[href*='nid.naver.com/nidlogin.logout'], .MyView-module__btn_logout___").count() > 0
+        return page.locator("a[href*='nidlogin.logout']").count() > 0 or "로그아웃" in page.content()
     except PWTimeout:
         return False
 
 
-def do_login(page, nid: str, npw: str):
-    print("[로그인] 네이버 로그인 시도...")
+def login(page, nid: str, npw: str):
+    print("[로그인] 시도...")
     page.goto("https://nid.naver.com/nidlogin.login?mode=form", wait_until="domcontentloaded")
     page.wait_for_selector("#id", timeout=15000)
-    # 클립보드 붙여넣기 방식 (키로깅 탐지 우회)
-    paste_text(page, "#id", nid)
-    time.sleep(0.4)
-    paste_text(page, "#pw", npw)
-    time.sleep(0.4)
-    page.click("#log\\.login, button[type='submit']")
-    time.sleep(2.5)
-
-    # 캡차/추가인증 감지 → 사람이 개입
-    url = page.url
-    if "nidlogin" in url or page.locator("#captcha, .captcha").count() > 0:
-        if page.locator("#captcha, .captcha, #frmNIDLogin").count() > 0 and "blog" not in url:
-            print("\n[개입필요] 캡차/추가 인증으로 보입니다. 열린 브라우저에서 직접 해결한 뒤 Enter를 누르세요.")
-            try:
-                input("  → 로그인 완료 후 Enter: ")
-            except EOFError:
-                time.sleep(20)
-
-    # 기기 등록 페이지 → '등록안함'
+    page.evaluate(
+        """([id, pw]) => {
+            const set=(el,v)=>{const s=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+              s.call(el,v); el.dispatchEvent(new Event('input',{bubbles:true}));
+              el.dispatchEvent(new Event('change',{bubbles:true})); el.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true}));};
+            set(document.querySelector('#id'), id); set(document.querySelector('#pw'), pw);
+        }""", [nid, npw])
+    time.sleep(0.5)
+    page.click("#log\\.login")
+    time.sleep(3)
+    if "nidlogin" in page.url:   # 캡차/추가인증
+        print("\n[개입필요] 캡차/추가 인증으로 보입니다. 브라우저에서 직접 해결 후 Enter.")
+        try:
+            input("  → 완료 후 Enter: ")
+        except EOFError:
+            time.sleep(25)
     for sel in ["#new\\.dontsave", "a:has-text('등록안함')", "button:has-text('등록안함')"]:
         try:
-            if page.locator(sel).count() > 0:
-                page.click(sel, timeout=3000)
+            if page.locator(sel).count():
+                page.click(sel, timeout=2500)
                 break
         except Exception:
             pass
-    time.sleep(1.5)
-    print("[로그인] 단계 완료(세션 저장됨).")
+    print("[로그인] 완료(세션 저장).")
 
 
-# ── 글쓰기 에디터 진입 + 팝업 정리 ─────────────────────────
-def open_writer(page, nid: str):
-    page.goto(f"https://blog.naver.com/{nid}?Redirect=Write&", wait_until="domcontentloaded")
-    time.sleep(3)
-    frame = None
+# ── 에디터 헬퍼 ────────────────────────────────────────────
+def get_frame(page):
     for _ in range(20):
-        frame = page.frame(name="mainFrame")
-        if frame:
-            break
+        fr = page.frame(name="mainFrame")
+        if fr:
+            return fr
         time.sleep(0.5)
+    return None
+
+
+def paste_into(page, frame, paragraph_selector: str, text: str):
+    set_clipboard(text)
+    time.sleep(0.3)
+    frame.locator(paragraph_selector).first.click()
+    time.sleep(0.3)
+    page.keyboard.press("Control+V")
+    time.sleep(0.7)
+
+
+def ensure_strike_off(frame):
+    on = frame.evaluate(
+        """() => { const b=[...document.querySelectorAll('button')]
+            .find(x=>x.className.includes('se-strikethrough-toolbar-button'));
+            return b ? b.className.includes('se-is-selected') : false; }""")
+    if on:
+        try:
+            frame.locator(".se-strikethrough-toolbar-button").first.click()
+            time.sleep(0.3)
+        except Exception:
+            pass
+
+
+def select_category(frame, category: str) -> bool:
+    try:
+        frame.get_by_role("button", name="카테고리 목록 버튼").click()
+        time.sleep(0.6)
+    except Exception:
+        pass
+    return bool(frame.evaluate(
+        """(cat) => {
+            const key = cat.replace(/\\s+/g,'');
+            const labels=[...document.querySelectorAll('[class*=category] label')];
+            let t=labels.find(l=>l.textContent.replace(/\\s+/g,'').includes(key));
+            if(t){const inp=t.querySelector('input')||(t.htmlFor?document.getElementById(t.htmlFor):null);(inp||t).click();return true;}
+            const sp=[...document.querySelectorAll('[class*=category] span,[class*=category] li')]
+                .find(e=>e.textContent.replace(/\\s+/g,'').includes(key));
+            if(sp){sp.click();return true;}
+            return false;
+        }""", category))
+
+
+# ── 단일 글 발행 ───────────────────────────────────────────
+def publish_one(page, post: dict, do_publish: bool) -> str:
+    page.goto(f"https://blog.naver.com/{BLOG_ID}?Redirect=Write&", wait_until="domcontentloaded")
+    time.sleep(3)
+    frame = get_frame(page)
     if not frame:
-        print("[경고] mainFrame(에디터 iframe)을 찾지 못함. 페이지 구조 변경 가능성.")
-        return None
-    # '작성 중인 글 불러오기' 팝업 → 취소
-    for sel in ["button:has-text('취소')", ".se-popup-button-cancel", "button.se-popup-button-cancel"]:
-        try:
-            if frame.locator(sel).count() > 0:
-                frame.click(sel, timeout=2500)
-                break
-        except Exception:
-            pass
-    # 도움말 패널 닫기
-    for sel in [".se-help-panel-close-button", "button.se-help-panel-close-button", ".se_help_close"]:
-        try:
-            if frame.locator(sel).count() > 0:
-                frame.click(sel, timeout=2000)
-        except Exception:
-            pass
-    return frame
+        return "FAIL(no-frame)"
+    # 도움말/작성중 팝업 정리
+    frame.evaluate(
+        """() => { const h=document.querySelector('.se-help-panel-close-button'); if(h)h.click();
+            const c=[...document.querySelectorAll('button')].find(b=>/취소|닫기/.test(b.textContent) && b.closest('[class*=popup]'));
+            if(c)c.click(); }""")
+    frame.wait_for_selector(".se-section-documentTitle .se-text-paragraph", timeout=15000)
 
+    paste_into(page, frame, ".se-section-documentTitle .se-text-paragraph", post["title"])
+    ensure_strike_off(frame)
+    paste_into(page, frame, ".se-section-text .se-text-paragraph", post["body"])
 
-# ── 전자동 발행(베스트에포트) ──────────────────────────────
-def autofill_and_publish(page, frame, data: dict, do_publish: bool, shot_prefix: str):
-    def shot(tag):
-        try:
-            SHOT_DIR.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(SHOT_DIR / f"{shot_prefix}_{tag}.png"))
-        except Exception:
-            pass
-
-    # 제목 입력
-    title_selectors = [
-        ".se-section-documentTitle .se-text-paragraph",
-        ".se-documentTitle .se-text-paragraph",
-        ".se-placeholder.__se_placeholder",
-    ]
-    for sel in title_selectors:
-        try:
-            if frame.locator(sel).count() > 0:
-                frame.click(sel, timeout=3000)
-                clip_write_text(page, data["title"])
-                page.keyboard.press(f"{MOD}+V")
-                break
-        except Exception:
-            continue
-    shot("title")
-
-    # 본문 입력 (HTML 클립보드 붙여넣기 → 실패 시 평문)
-    body_selectors = [
-        ".se-section-text .se-text-paragraph",
-        ".se-component.se-text .se-text-paragraph",
-        ".se-content .se-text-paragraph",
-    ]
-    pasted = False
-    for sel in body_selectors:
-        try:
-            if frame.locator(sel).count() > 0:
-                frame.click(sel, timeout=3000)
-                try:
-                    clip_write_html(page, data["body_html"], data["body_text"])
-                except Exception:
-                    clip_write_text(page, data["body_text"])
-                page.keyboard.press(f"{MOD}+V")
-                pasted = True
-                break
-        except Exception:
-            continue
-    if not pasted:
-        print("  [경고] 본문 입력 영역을 찾지 못함 — 수동 붙여넣기 필요(클립보드에 본문 적재됨).")
-        clip_write_html(page, data["body_html"], data["body_text"])
-    time.sleep(1.5)
-    shot("body")
+    strike = frame.evaluate("() => document.querySelector('.se-section-text').querySelectorAll('strike,s').length")
+    if strike:
+        print(f"    [경고] 취소선 {strike}개 감지 → 재처리")
+        frame.locator(".se-section-text .se-text-paragraph").first.click()
+        page.keyboard.press("Control+A")
+        page.keyboard.press("Delete")
+        ensure_strike_off(frame)
+        paste_into(page, frame, ".se-section-text .se-text-paragraph", post["body"])
 
     if not do_publish:
-        # 임시저장 (Ctrl+S 또는 저장 버튼)
         try:
-            frame.click("button:has-text('저장')", timeout=3000)
+            frame.get_by_role("button", name="저장").first.click()
         except Exception:
-            page.keyboard.press(f"{MOD}+s")
-        print("  [완료] 임시저장 시도. 에디터에서 확인하세요.")
-        shot("draft")
-        return
+            page.keyboard.press("Control+S")
+        time.sleep(1.5)
+        return "DRAFT"
 
-    # 발행 패널 열기
-    for sel in ["button:has-text('발행')", ".publish_btn__m9KHH", "button.publish_btn__m9KHH"]:
-        try:
-            if frame.locator(sel).count() > 0:
-                frame.click(sel, timeout=4000)
-                break
-        except Exception:
-            continue
+    frame.get_by_role("button", name="발행").first.click()      # 패널 열기
     time.sleep(1.5)
-    shot("publish_panel")
-
-    # 카테고리 선택 (가능하면)
-    if data.get("category"):
-        try:
-            frame.click("button:has-text('카테고리')", timeout=2500)
-            time.sleep(0.5)
-            frame.click(f"label:has-text('{data['category']}'), span:has-text('{data['category']}')", timeout=2500)
-        except Exception:
-            print(f"  [참고] 카테고리 '{data['category']}' 자동 선택 실패 — 기본 카테고리로 진행.")
-
-    # 최종 발행 확정
-    confirmed = False
-    for sel in [".confirm_btn__WEaBq", "button.confirm_btn__WEaBq",
-                ".layer_btn_area button:has-text('발행')", "button:has-text('발행')"]:
-        try:
-            if frame.locator(sel).count() > 0:
-                frame.click(sel, timeout=4000)
-                confirmed = True
-                break
-        except Exception:
-            continue
-    time.sleep(3)
-    shot("done")
-    print(f"  [{'완료' if confirmed else '미확인'}] 발행 {'성공 추정' if confirmed else '버튼 확인 실패 — 스크린샷 점검'}.")
+    ok = select_category(frame, post["category"])
+    if not ok:
+        print(f"    [참고] 카테고리 '{post['category']}' 자동선택 실패 → 기본값 유지")
+    # 태그
+    try:
+        tagbox = frame.get_by_role("combobox", name=re.compile("태그 입력"))
+        for tg in post["tags"]:
+            tagbox.fill(tg)
+            tagbox.press("Enter")
+            time.sleep(0.3)
+    except Exception:
+        pass
+    # 발행 확정
+    frame.get_by_test_id("seOnePublishBtn").click()
+    time.sleep(4)
+    return page.url
 
 
 # ── 메인 ───────────────────────────────────────────────────
 def main():
-    ap = argparse.ArgumentParser(description="네이버 블로그 자동 발행기")
-    ap.add_argument("files", nargs="*", help="발행할 naver_out/*.html (생략 시 오늘자 전체)")
-    ap.add_argument("--date", help="YYYYMMDD (해당 날짜 파일만)")
-    ap.add_argument("--publish", action="store_true", help="제목/본문/카테고리/발행 전자동")
-    ap.add_argument("--draft", action="store_true", help="발행 대신 임시저장까지만")
-    ap.add_argument("--headless", action="store_true", help="헤드리스(권장X — 캡차 대응 불가)")
+    ap = argparse.ArgumentParser(description="네이버 블로그 당일 리포트 일괄 발행")
+    ap.add_argument("files", nargs="*", help="특정 .mdx (생략 시 오늘자 전체)")
+    ap.add_argument("--date", help="YYYYMMDD")
+    ap.add_argument("--draft", action="store_true", help="발행 대신 임시저장")
+    ap.add_argument("--headless", action="store_true")
     args = ap.parse_args()
 
     nid, npw = load_creds()
-    files = pick_files(args)
-    if not files:
-        print("[종료] 발행할 파일이 없습니다.")
+    if args.files:
+        paths = [Path(f) if Path(f).is_absolute() else ROOT / f for f in args.files]
+    else:
+        date_str = args.date or _dt.date.today().strftime("%Y%m%d")
+        paths = collect_today(date_str)
+    paths = [p for p in paths if p.exists()]
+    if not paths:
+        print("[종료] 발행할 당일 리포트가 없습니다.")
         return 1
 
-    reports = []
-    for f in files:
-        if not f.exists():
-            print(f"[건너뜀] 파일 없음: {f}")
-            continue
-        d = parse_export(f)
-        d["src"] = f
-        reports.append(d)
-        print(f"[대상] {f.name}  | 카테고리: {d['category'] or '(미상)'} | 제목: {d['title'][:40]}...")
-
-    if not reports:
-        return 1
+    posts = [build_post(p) for p in paths]
+    print(f"[대상] {len(posts)}건")
+    for p in posts:
+        print(f"  - [{p['category']}] {p['title'][:42]}  ({p['src'].name})")
 
     PROFILE_DIR.mkdir(parents=True, exist_ok=True)
-    mode = "publish" if args.publish else ("draft" if args.draft else "assist")
-    print(f"\n[모드] {mode}\n")
-
+    results = []
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
-            user_data_dir=str(PROFILE_DIR),
-            headless=args.headless,
+            user_data_dir=str(PROFILE_DIR), headless=args.headless,
             args=["--disable-blink-features=AutomationControlled", "--start-maximized"],
             viewport=None,
         )
@@ -373,38 +377,24 @@ def main():
                 pass
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
 
-        if not already_logged_in(page):
-            do_login(page, nid, npw)
-            if not already_logged_in(page):
-                print("[오류] 로그인 확인 실패. 브라우저에서 수동 로그인 후 다시 실행하세요(세션 저장됨).")
-                input("  → 수동 로그인 완료 후 Enter(세션 저장): ")
+        if not logged_in(page):
+            login(page, nid, npw)
         else:
             print("[로그인] 기존 세션 재사용.")
 
-        for i, d in enumerate(reports, 1):
-            print(f"\n=== [{i}/{len(reports)}] {d['src'].name} ===")
-            frame = open_writer(page, nid)
-            if not frame:
-                print("  [건너뜀] 에디터 진입 실패.")
-                continue
+        for i, post in enumerate(posts, 1):
+            print(f"\n=== [{i}/{len(posts)}] {post['src'].name} ===")
+            try:
+                res = publish_one(page, post, do_publish=not args.draft)
+            except Exception as e:
+                res = f"FAIL({type(e).__name__}: {str(e)[:80]})"
+            print(f"    → {res}")
+            results.append((post["title"], post["category"], res))
+            time.sleep(1)
 
-            if mode == "assist":
-                clip_write_html(page, d["body_html"], d["body_text"])
-                print("  [assist] 글쓰기 페이지가 열렸습니다.")
-                print(f"    • 제목(클립보드 대체용): {d['title']}")
-                print(f"    • 추천 카테고리: {d['category'] or '(수동 선택)'}")
-                print("    • 본문 HTML이 클립보드에 적재됨 → 본문 영역 클릭 후 Ctrl+V, 발행은 직접 클릭.")
-                input("    → 이 글 처리 완료 후 Enter(다음 글로): ")
-            else:
-                autofill_and_publish(page, frame, d, do_publish=(mode == "publish"),
-                                     shot_prefix=d["src"].stem)
-                time.sleep(1)
-
-        print("\n[종료] 모든 대상 처리. 브라우저는 점검을 위해 열어둡니다.")
-        try:
-            input("→ 종료하려면 Enter: ")
-        except EOFError:
-            time.sleep(5)
+        print("\n===== 발행 요약 =====")
+        for t, c, r in results:
+            print(f"  [{c}] {r}  | {t[:40]}")
         ctx.close()
     return 0
 

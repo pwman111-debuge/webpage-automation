@@ -51,6 +51,22 @@
 
 ---
 
+### "네이버 블로그 포스팅하자"
+
+당일(오늘 날짜) `content/` 하위에 생성된 **모든 리포트의 요약본**을 네이버 블로그(`blog.naver.com/pwman11`)에 자동 발행한다.
+
+```bash
+python -X utf8 scripts/naver_blog_publisher.py          # 오늘자 전체 발행
+python -X utf8 scripts/naver_blog_publisher.py --date YYYYMMDD   # 특정일
+python -X utf8 scripts/naver_blog_publisher.py --draft  # 임시저장(테스트)
+```
+
+- 각 글 = frontmatter `summary` 요약 + genesis-report.com 원문 백링크 + 면책. 폴더→카테고리 자동 매핑(market-analysis→시황분석, picks→유망종목, stock-reports→종목리포트, market-insight→마켓인사이트, picks-feedback→투자성과 리포트, education→투자교육), frontmatter `tags` 자동 입력.
+- 자격증명은 `scripts/.env.naver`(gitignore), 세션은 `scripts/.naver_profile/`에 영속(최초 1회만 로그인).
+- 헤드풀 실행 권장. 같은 날 중복 실행 시 중복 게시되므로 1일 1회 실행. 첫 로그인에 캡차가 뜨면 브라우저에서 직접 해결 후 진행(headed).
+
+---
+
 ## 폴더 구조
 
 ```
