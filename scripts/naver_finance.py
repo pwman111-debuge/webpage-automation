@@ -167,22 +167,19 @@ def cmd_theme():
             if not name_tag:
                 continue
             name = name_tag.get_text(strip=True)
-            # col[0]=테마명, col[1]=등락률, col[2]=전체, col[3]=상승, col[4]=보합, col[5]=하락
-            chg_text = cols[1].get_text(strip=True) if len(cols) > 1 else ""
-            rising   = cols[3].get_text(strip=True) if len(cols) > 3 else ""
-            falling  = cols[5].get_text(strip=True) if len(cols) > 5 else ""
+            values = [c.get_text(strip=True) for c in cols[1:3]]
             try:
-                chg = float(chg_text.replace("+", "").replace(",", "").replace("%", ""))
+                chg = float(values[1].replace(",", "").replace("%", "")) if len(values) > 1 else 0
             except ValueError:
                 chg = 0
-            themes.append({"name": name, "change_pct": chg, "rising": rising, "falling": falling})
+            themes.append({"name": name, "change_pct": chg})
 
         themes.sort(key=lambda x: x["change_pct"], reverse=True)
-        print(f"{'순위':<4} {'테마명':<30} {'등락률':>8}  {'상승/하락':>8}")
-        print("-" * 56)
+        print(f"{'순위':<4} {'테마명':<30} {'등락률':>8}")
+        print("-" * 50)
         for i, t in enumerate(themes[:15], 1):
             sign = "+" if t["change_pct"] >= 0 else ""
-            print(f"{i:<4} {t['name']:<30} {sign}{t['change_pct']:>6.2f}%  {t['rising']}↑/{t['falling']}↓")
+            print(f"{i:<4} {t['name']:<30} {sign}{t['change_pct']:>6.2f}%")
 
     except Exception as e:
         print(f"테마 조회 오류: {e}")

@@ -232,13 +232,57 @@ def login(page, nid: str, npw: str):
 
 
 # ── 에디터 헬퍼 ────────────────────────────────────────────
-def get_frame(page):
-    for _ in range(20):
-        fr = page.frame(name="mainFrame")
-        if fr:
-            return fr
+# SmartEditor ONE 루트를 식별하는 셀렉터(제목칸 or 본문 캔버스)
+_EDITOR_PROBE = ".se-section-documentTitle, .se-content, .se-canvas"
+
+
+def get_editor(ctx, page):
+    """모든 탭·모든 프레임을 훑어 SmartEditor가 들어있는 (owner_page, frame)을 반환.
+
+    글쓰기 페이지가 새 탭으로 열리거나(target=_blank) mainFrame 이름이 바뀌어도
+    에디터 DOM(_EDITOR_PROBE) 존재 여부로 직접 찾는다.
+    """
+    deadline = time.time() + 18
+    while time.time() < deadline:
+        for pg in list(reversed(ctx.pages)):   # 최근 열린 탭 우선
+            try:
+                cands = []
+                fr = pg.frame(name="mainFrame")
+                if fr:
+                    cands.append(fr)
+                cands.extend(f for f in pg.frames if f not in cands)
+                for f in cands:
+                    try:
+                        if f.locator(_EDITOR_PROBE).count() > 0:
+                            return pg, f
+                    except Exception:
+                        continue
+            except Exception:
+                continue
         time.sleep(0.5)
-    return None
+    return None, None
+
+
+def dismiss_popups(page, frame):
+    """임시저장 글 복구 팝업·도움말 패널을 닫아 새 에디터 상태로 만든다."""
+    for _ in range(3):
+        try:
+            frame.evaluate(
+                """() => {
+                    // 도움말 패널
+                    const h=document.querySelector('.se-help-panel-close-button'); if(h)h.click();
+                    // 작성 중이던 글 복구 팝업 → '취소'(새 글로 시작)
+                    const btns=[...document.querySelectorAll('button')];
+                    const cancel=btns.find(b=>/^\\s*(취소|닫기)\\s*$/.test(b.textContent||'')
+                        && (b.closest('[class*=popup]')||b.closest('[class*=layer]')||b.closest('[class*=dialog]')));
+                    if(cancel){cancel.click(); return;}
+                    // data-testid 기반 취소 버튼
+                    const t=document.querySelector('[data-testid*="cancel"],[data-testid*="Cancel"]');
+                    if(t)t.click();
+                }""")
+        except Exception:
+            pass
+        time.sleep(0.5)
 
 
 def paste_into(page, frame, paragraph_selector: str, text: str):
@@ -283,37 +327,39 @@ def select_category(frame, category: str) -> bool:
 
 
 # ── 단일 글 발행 ───────────────────────────────────────────
-def publish_one(page, post: dict, do_publish: bool) -> str:
+def publish_one(ctx, page, post: dict, do_publish: bool) -> str:
     page.goto(f"https://blog.naver.com/{BLOG_ID}?Redirect=Write&", wait_until="domcontentloaded")
     time.sleep(3)
-    frame = get_frame(page)
+    owner, frame = get_editor(ctx, page)
     if not frame:
+        diag = f"pages={len(ctx.pages)} url={page.url[:60]}"
+        print(f"    [진단] 에디터 프레임 미발견 — {diag}")
         return "FAIL(no-frame)"
-    # 도움말/작성중 팝업 정리
-    frame.evaluate(
-        """() => { const h=document.querySelector('.se-help-panel-close-button'); if(h)h.click();
-            const c=[...document.querySelectorAll('button')].find(b=>/취소|닫기/.test(b.textContent) && b.closest('[class*=popup]'));
-            if(c)c.click(); }""")
-    frame.wait_for_selector(".se-section-documentTitle .se-text-paragraph", timeout=15000)
+    # 도움말/작성중 복구 팝업 정리 (새 글 상태로)
+    dismiss_popups(owner, frame)
+    try:
+        frame.wait_for_selector(".se-section-documentTitle .se-text-paragraph", timeout=15000)
+    except PWTimeout:
+        return "FAIL(no-title)"
 
-    paste_into(page, frame, ".se-section-documentTitle .se-text-paragraph", post["title"])
+    paste_into(owner, frame, ".se-section-documentTitle .se-text-paragraph", post["title"])
     ensure_strike_off(frame)
-    paste_into(page, frame, ".se-section-text .se-text-paragraph", post["body"])
+    paste_into(owner, frame, ".se-section-text .se-text-paragraph", post["body"])
 
     strike = frame.evaluate("() => document.querySelector('.se-section-text').querySelectorAll('strike,s').length")
     if strike:
         print(f"    [경고] 취소선 {strike}개 감지 → 재처리")
         frame.locator(".se-section-text .se-text-paragraph").first.click()
-        page.keyboard.press("Control+A")
-        page.keyboard.press("Delete")
+        owner.keyboard.press("Control+A")
+        owner.keyboard.press("Delete")
         ensure_strike_off(frame)
-        paste_into(page, frame, ".se-section-text .se-text-paragraph", post["body"])
+        paste_into(owner, frame, ".se-section-text .se-text-paragraph", post["body"])
 
     if not do_publish:
         try:
             frame.get_by_role("button", name="저장").first.click()
         except Exception:
-            page.keyboard.press("Control+S")
+            owner.keyboard.press("Control+S")
         time.sleep(1.5)
         return "DRAFT"
 
@@ -385,7 +431,7 @@ def main():
         for i, post in enumerate(posts, 1):
             print(f"\n=== [{i}/{len(posts)}] {post['src'].name} ===")
             try:
-                res = publish_one(page, post, do_publish=not args.draft)
+                res = publish_one(ctx, page, post, do_publish=not args.draft)
             except Exception as e:
                 res = f"FAIL({type(e).__name__}: {str(e)[:80]})"
             print(f"    → {res}")
