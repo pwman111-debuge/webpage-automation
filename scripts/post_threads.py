@@ -126,15 +126,20 @@ def build_post_text(fm, post_url):
         if tag_list:
             hashtags = " ".join([f"#{t.replace(' ', '')}" for t in tag_list[:4]])
 
-    text = f"{title}\n\n{summary}"
+    # 접미부(해시태그 + 링크)는 반드시 보존한다. Threads 500자 한도를 넘으면
+    # 본문(제목+요약)만 잘라내고 링크는 절대 자르지 않는다.
+    suffix = ""
     if hashtags:
-        text += f"\n\n{hashtags}"
-    text += f"\n\n🔗 {post_url}"
+        suffix += f"\n\n{hashtags}"
+    suffix += f"\n\n🔗 {post_url}"
 
-    if len(text) > 490:
-        text = text[:487] + "..."
+    MAX_LEN = 490
+    body = f"{title}\n\n{summary}"
+    avail = MAX_LEN - len(suffix)
+    if len(body) > avail:
+        body = body[: max(0, avail - 3)] + "..."
 
-    return text
+    return body + suffix
 
 
 OG_IMAGE_URL = "https://genesis-report.com/og-image.png"
