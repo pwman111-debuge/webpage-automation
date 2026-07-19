@@ -127,15 +127,17 @@ def build_post_text(fm, post_url):
         if tag_list:
             hashtags = " ".join([f"#{t.replace(' ', '')}" for t in tag_list[:4]])
 
-    text = f"{title}\n\n{summary}"
+    # 링크·해시태그는 항상 포함되도록 공간을 먼저 확보하고, 요약만 잘라낸다
+    tail = ""
     if hashtags:
-        text += f"\n\n{hashtags}"
-    text += f"\n\n🔗 {post_url}"
+        tail += f"\n\n{hashtags}"
+    tail += f"\n\n🔗 {post_url}"
 
-    if len(text) > 490:
-        text = text[:487] + "..."
+    budget = 490 - len(title) - 2 - len(tail)  # 2 = 제목 뒤 "\n\n"
+    if len(summary) > budget:
+        summary = summary[:budget - 1].rstrip() + "…"
 
-    return text
+    return f"{title}\n\n{summary}{tail}"
 
 
 OG_IMAGE_URL = "https://genesis-report.com/og-image.png"
