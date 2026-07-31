@@ -167,10 +167,12 @@ def cmd_theme():
             if not name_tag:
                 continue
             name = name_tag.get_text(strip=True)
+            # 컬럼 구조: [테마명, 전일대비(등락률%), 전체종목수, 상승, 보합, 하락, 등락그래프]
+            # cols[2]는 '전체 종목 수'다. 이를 등락률로 읽으면 "+148.00%" 같은 값이 나온다.
             values = [c.get_text(strip=True) for c in cols[1:3]]
             try:
-                chg = float(values[1].replace(",", "").replace("%", "")) if len(values) > 1 else 0
-            except ValueError:
+                chg = float(values[0].replace(",", "").replace("%", "").replace("+", ""))
+            except (ValueError, IndexError):
                 chg = 0
             themes.append({"name": name, "change_pct": chg})
 
@@ -246,38 +248,53 @@ def cmd_stock(code):
     except Exception as e:
         print(f"종목 기본 조회 오류: {e}")
 
-    # 재무 정보 (PC 버전 HTML)
+    # 밸류에이션 요약 + 재무 + 컨센서스 (모바일 API)
+    # PC HTML(main.naver / coinfo.naver)은 테이블 셀렉터가 바뀌어 빈 결과만 반환하므로
+    # integration / finance API로 대체한다.
     print()
-    print("[재무 정보 - 네이버 증권 종목분석]")
+    print("[밸류에이션 요약 - 네이버 증권]")
+    integ = None
     try:
-        soup = fetch_html_pc(f"https://finance.naver.com/item/main.naver?code={code}")
+        integ = fetch_json_mobile(f"https://m.stock.naver.com/api/stock/{code}/integration")
+        for item in integ.get("totalInfos", []):
+            desc = f"  ({item['valueDesc']})" if item.get("valueDesc") else ""
+            print(f"  {item.get('key', ''):<12}: {item.get('value', '-')}{desc}")
+    except Exception as e:
+        print(f"  밸류에이션 조회 오류: {e}")
 
-        # 영업이익, 순이익 등
-        finance_rows = soup.select("table.tb_type1_ifrs tr, table.tb_type1 tr")
-        for row in finance_rows[:8]:
-            th = row.find("th")
-            tds = row.select("td")
-            if th and tds:
-                label = th.get_text(strip=True)
-                vals = [td.get_text(strip=True) for td in tds[:4]]
-                if any(v for v in vals):
-                    print(f"  {label:<20}: {' | '.join(vals)}")
-
+    print()
+    print("[기업실적분석 - 최근 3개년(A) + 전망치(E)]")
+    try:
+        fin = fetch_json_mobile(
+            f"https://m.stock.naver.com/api/stock/{code}/finance/annual")["financeInfo"]
+        cols = [(t["key"], t["title"], t["isConsensus"]) for t in fin["trTitleList"]]
+        header = "".join(f"{t + ('(E)' if c == 'Y' else '(A)'):>14}" for _, t, c in cols)
+        print(f"  {'항목':<16}{header}")
+        keep = ("매출액", "영업이익", "당기순이익", "영업이익률", "ROE",
+                "부채비율", "EPS", "PER", "BPS", "PBR", "주당배당금")
+        for row in fin["rowList"]:
+            if not any(row["title"].startswith(k) for k in keep):
+                continue
+            line = "".join(
+                f"{((row['columns'].get(k) or {}).get('value') or '-'):>14}"
+                for k, _, _ in cols)
+            print(f"  {row['title']:<16}{line}")
+        print("  ※ 전망치(E)는 컨센서스이며 실제 결과와 다를 수 있습니다.")
     except Exception as e:
         print(f"  재무 정보 조회 오류: {e}")
 
-    # 증권사 목표주가
     print()
-    print("[증권사 투자의견 / 목표주가]")
+    print("[증권사 컨센서스]")
     try:
-        soup2 = fetch_html_pc(f"https://finance.naver.com/item/coinfo.naver?code={code}&target=cnc")
-        opinion_rows = soup2.select("table.type_1 tr, .co_table tr")
-        for row in opinion_rows[:6]:
-            tds = row.select("td")
-            if len(tds) >= 3:
-                print(f"  {' | '.join(td.get_text(strip=True) for td in tds[:4])}")
+        cons = (integ or {}).get("consensusInfo") or {}
+        if cons:
+            print(f"  목표주가 평균: {cons.get('priceTargetMean', '-')} 원")
+            print(f"  투자의견(5점): {cons.get('recommMean', '-')}")
+            print(f"  기준일:        {cons.get('createDate', '-')}")
+        else:
+            print("  컨센서스 미형성 종목 (참여 증권사 부족)")
     except Exception as e:
-        print(f"  목표주가 조회 오류: {e}")
+        print(f"  컨센서스 조회 오류: {e}")
 
 
 # ── 3단계: 투자자별 매매동향 ───────────────────────────────
@@ -286,26 +303,46 @@ def cmd_investor(code):
     try:
         soup = fetch_html_pc(f"https://finance.naver.com/item/frgn.naver?code={code}")
         rows = soup.select("table.type2 tr, table.frgn_table tr")
-        print(f"{'날짜':<12} {'종가':>10} {'외국인':>12} {'기관':>12} {'개인':>12}")
-        print("-" * 65)
+        # frgn.naver 컬럼 구조 (인덱스):
+        #   0 날짜 | 1 종가 | 2 전일비 | 3 등락률 | 4 거래량
+        #   5 기관 순매매량 | 6 외국인 순매매량 | 7 외국인 보유주수 | 8 외국인 보유율
+        # 과거 구현은 texts[:5]를 출력해 수급 대신 시세(전일비·등락률·거래량)를 찍었다.
+        print(f"{'날짜':<12} {'종가':>10} {'등락률':>8} {'기관':>12} {'외국인':>12} {'외인보유율':>9}")
+        print("-" * 70)
         count = 0
+        cum_org = cum_frgn = 0
         for row in rows:
             cols = row.select("td")
-            if len(cols) < 5:
+            if len(cols) < 7:
                 continue
             texts = [c.get_text(strip=True) for c in cols]
-            # 날짜 패턴 있는 행만
-            if re.match(r"\d{4}\.\d{2}\.\d{2}", texts[0]):
-                print(f"  {' | '.join(texts[:5])}")
-                count += 1
+            if not re.match(r"\d{4}\.\d{2}\.\d{2}", texts[0]):
+                continue
+
+            def to_int(s):
+                try:
+                    return int(s.replace(",", "").replace("+", ""))
+                except ValueError:
+                    return 0
+
+            org, frgn = to_int(texts[5]), to_int(texts[6])
+            cum_org += org
+            cum_frgn += frgn
+            hold = texts[8] if len(texts) > 8 else ""
+            print(f"  {texts[0]:<12} {texts[1]:>10} {texts[3]:>8} "
+                  f"{texts[5]:>12} {texts[6]:>12} {hold:>9}")
+            count += 1
+            if count in (5, 20):
+                print(f"  {'':-<12} {count}일 누적: 기관 {cum_org:+,} / 외국인 {cum_frgn:+,}")
             if count >= 20:
                 break
 
         if count == 0:
-            # 대안: 직접 파싱
-            all_text = soup.get_text()
             print("  (표 파싱 실패 - 페이지 직접 확인 권장)")
             print(f"  URL: https://finance.naver.com/item/frgn.naver?code={code}")
+        else:
+            print()
+            print("  ※ 단위: 주식수. '쌍끌이'는 기관·외국인이 동시에 (+)일 때만 사용한다.")
 
     except Exception as e:
         print(f"투자자 동향 조회 오류: {e}")
