@@ -56,82 +56,67 @@ HEADERS = {
     )
 }
 
-# 네이버 증권 재무 테이블 row 인덱스 매핑
-ROW_MAP = {
-    "매출액":       0,
-    "영업이익":     1,
-    "영업이익률":   3,
-    "ROE":          5,
-    "부채비율":     6,
-    "EPS":          9,
-    "PER":         10,
-    "BPS":         11,
-    "PBR":         12,
-}
+# 연간 재무 JSON API (행은 title 문자열로 조회 — 인덱스 의존 제거)
+FINANCE_API = "https://m.stock.naver.com/api/stock/{code}/finance/annual"
+
+
+def _to_float(val):
+    """'1,234' / '-' / None -> float | None"""
+    if val in (None, "-", "", "N/A"):
+        return None
+    try:
+        return float(str(val).replace(",", "").replace("%", "").replace("배", "").strip())
+    except (ValueError, TypeError):
+        return None
+
 
 # ─────────────────────────────────────────
 # 네이버 증권 재무 데이터 수집
 # ─────────────────────────────────────────
 def fetch_naver_finance(ticker: str) -> dict | None:
     """
-    네이버 증권 종목 메인 페이지에서 연간 재무 데이터를 추출한다.
-    반환: dict (ROE, 영업이익률, 부채비율, PER, PBR, EPS_전년, EPS_현재, 매출액_list 등)
+    네이버 증권 연간 재무 JSON API에서 재무 데이터를 추출한다.
+    반환: dict (ROE, 영업이익률, 부채비율, PER, PBR, EPS_전년, EPS_최근, 매출_추이 등)
     실패 시: None
+
+    2026-08-03 수정: 기존 구현은 종목 메인 페이지 HTML의 `tables[4]`를 고정 인덱스로
+    파싱했는데, 네이버가 페이지 구조를 변경하면서 **모든 종목이 동일한 값**을 반환하는
+    버그가 있었다(ROE 525763.0 / PBR 15.14 등). 검증된 JSON API로 교체하고,
+    행은 인덱스가 아닌 title 문자열로 조회하도록 바꿔 구조 변경에 견디게 했다.
     """
-    url = f"https://finance.naver.com/item/main.naver?code={ticker}"
     try:
-        r = requests.get(url, headers=HEADERS, timeout=8)
-        r.encoding = "euc-kr"
+        r = requests.get(FINANCE_API.format(code=ticker), headers=HEADERS, timeout=10)
+        info = r.json()["financeInfo"]
     except Exception:
         return None
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    tables = soup.find_all("table")
-
-    if len(tables) < 5:
-        return None
-
     try:
-        df = pd.read_html(io.StringIO(str(tables[4])))[0]
-    except Exception:
-        return None
+        # 확정 연도만 사용 (isConsensus == "Y" 는 컨센서스 전망치)
+        actual = [t["key"] for t in info["trTitleList"] if t.get("isConsensus") != "Y"]
+        if not actual:
+            return None
+        recent = actual[-1]
 
-    # 연간 컬럼: 1, 2, 3번째 (최근 3개년)
-    # df.iloc[row_index, col_index]  col 0=항목명, 1=3년전, 2=2년전, 3=1년전(최근), 4=예상
-    try:
-        def safe_float(val):
-            try:
-                return float(str(val).replace(",", "").strip())
-            except Exception:
-                return None
+        rows = {row["title"]: row["columns"] for row in info["rowList"]}
 
-        # 최근 연간 기준 (col index 3 = 가장 최근 확정 연도)
-        roe         = safe_float(df.iloc[ROW_MAP["ROE"],         3])
-        op_margin   = safe_float(df.iloc[ROW_MAP["영업이익률"],  3])
-        debt_ratio  = safe_float(df.iloc[ROW_MAP["부채비율"],    3])
-        per         = safe_float(df.iloc[ROW_MAP["PER"],         3])
-        pbr         = safe_float(df.iloc[ROW_MAP["PBR"],         3])
-        eps_prev    = safe_float(df.iloc[ROW_MAP["EPS"],         2])  # 전년
-        eps_curr    = safe_float(df.iloc[ROW_MAP["EPS"],         3])  # 최근
-        rev_list    = [
-            safe_float(df.iloc[ROW_MAP["매출액"], c]) for c in [1, 2, 3]
-        ]
-        op_list     = [
-            safe_float(df.iloc[ROW_MAP["영업이익"], c]) for c in [1, 2, 3]
-        ]
+        def val(title, key):
+            col = rows.get(title, {}).get(key)
+            return _to_float(col.get("value")) if isinstance(col, dict) else None
 
-        bps = safe_float(df.iloc[ROW_MAP["BPS"], 3])
+        # 최근 3개년 매출/영업이익 추이 (연도 수가 3 미만이면 있는 만큼)
+        rev_list = [val("매출액", k) for k in actual[-3:]]
+        op_list = [val("영업이익", k) for k in actual[-3:]]
 
         return {
-            "ROE":        roe,
-            "영업이익률": op_margin,
-            "부채비율":   debt_ratio,
-            "PER":        per,
-            "PBR":        pbr,
-            "BPS":        bps,
-            "EPS_전년":   eps_prev,
-            "EPS_최근":   eps_curr,
-            "매출_추이":  rev_list,
+            "ROE":         val("ROE", recent),
+            "영업이익률":  val("영업이익률", recent),
+            "부채비율":    val("부채비율", recent),
+            "PER":         val("PER", recent),
+            "PBR":         val("PBR", recent),
+            "BPS":         val("BPS", recent),
+            "EPS_전년":    val("EPS", actual[-2]) if len(actual) >= 2 else None,
+            "EPS_최근":    val("EPS", recent),
+            "매출_추이":   rev_list,
             "영업익_추이": op_list,
         }
     except Exception:
