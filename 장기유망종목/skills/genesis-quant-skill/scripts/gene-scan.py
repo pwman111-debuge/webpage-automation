@@ -72,6 +72,25 @@ ROW_MAP = {
 # ─────────────────────────────────────────
 # 네이버 증권 재무 데이터 수집
 # ─────────────────────────────────────────
+def _read_finance_table(soup) -> "pd.DataFrame | None":
+    """네이버 종목 메인 페이지에서 '기업실적분석' 표만 골라 DataFrame으로 반환한다.
+
+    이 표는 class에 "tb_type1_ifrs"(접두사 tb_type1_ifr)를 갖는 유일한 표다.
+    이전 구현은 tables[4] 고정 인덱스를 썼는데, 코스피 종목은 상단 주가정보 표가
+    2개(no_info x2)이고 코스닥·일부 종목은 1개여서 인덱스가 한 칸씩 밀린다.
+    밀린 경우 tables[4]는 '동일업종 비교' 표(class="tb_type1 tb_num")가 되고,
+    그 표의 첫 데이터 열은 해당 업종 대표 종목이므로 서로 다른 종목이
+    모두 동일한 값(예: 반도체 업종 -> SK하이닉스)을 반환하게 된다.
+    """
+    for tb in soup.find_all("table"):
+        if any(c.startswith("tb_type1_ifr") for c in (tb.get("class") or [])):
+            try:
+                return pd.read_html(io.StringIO(str(tb)))[0]
+            except Exception:
+                return None
+    return None
+
+
 def fetch_naver_finance(ticker: str) -> dict | None:
     """
     네이버 증권 종목 메인 페이지에서 연간 재무 데이터를 추출한다.
@@ -86,14 +105,9 @@ def fetch_naver_finance(ticker: str) -> dict | None:
         return None
 
     soup = BeautifulSoup(r.text, "html.parser")
-    tables = soup.find_all("table")
 
-    if len(tables) < 5:
-        return None
-
-    try:
-        df = pd.read_html(io.StringIO(str(tables[4])))[0]
-    except Exception:
+    df = _read_finance_table(soup)
+    if df is None:
         return None
 
     # 연간 컬럼: 1, 2, 3번째 (최근 3개년)
@@ -366,12 +380,8 @@ def fetch_report_data(ticker: str) -> dict | None:
         pass
 
     # 재무 테이블 수집
-    tables = soup.find_all("table")
-    if len(tables) < 5:
-        return None
-    try:
-        df = pd.read_html(io.StringIO(str(tables[4])))[0]
-    except Exception:
+    df = _read_finance_table(soup)
+    if df is None:
         return None
 
     # 연도 헤더 파싱 (튜플 컬럼에서 연도 추출)
