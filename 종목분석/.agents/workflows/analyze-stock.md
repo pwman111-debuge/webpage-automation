@@ -67,7 +67,7 @@ description: 사용자가 '제네시스' 명령을 내리면 Antigravity AI를 �
 > **⚠️ 당일 데이터 사용 규칙:** 네이버 증권 투자자별 순매매 상위 페이지는 **좌(전날)·우(당일)** 두 컬럼을 나란히 표시한다.
 > - 좌측 = 전날 데이터 → **절대 사용 금지**
 > - 우측 = 당일(오늘) 데이터 → **반드시 이것만 사용**
-> Python 수집 시: `re.findall` 결과는 `[전날1위,...,전날20위, 당일1위,...,당일20위]` 순 → `all_items[-(len(all_items)//2):]`가 당일 데이터.
+> Python 수집 시: `re.findall` 결과는 `[전날1위,...,전날20위, 당일1위,...,당일20위]` 순 → `all_items[len(all_items)//2:]`가 당일 데이터.
 
 1.  **[Tool: Browser Subagent]** 네이버 증권 → 외국인·기관 탭(`https://finance.naver.com/item/frgn.naver?code=[ticker]`)에 직접 접속합니다.
 2.  **[Data Extraction]** 다음 항목을 순서대로 직접 읽어옵니다.

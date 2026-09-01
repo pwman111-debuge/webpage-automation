@@ -133,6 +133,7 @@ def analyze(stock, end_date):
         'disp20': (close / ma20 - 1) * 100,
         'rsi': rsi14(bars[-60:]),
         'hi60': max(b['high'] for b in bars[-60:]),
+        'hc60': max(b['close'] for b in bars[-60:]),  # [R-48] ① 목표가 산출 기준: 60일 창 최고 '종가'
         'lo60': min(b['low'] for b in bars[-60:]),
         'last_date': bars[-1]['date'],
     }
