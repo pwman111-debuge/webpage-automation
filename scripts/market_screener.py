@@ -32,29 +32,32 @@ def fetch(url, enc='euc-kr'):
 def market_cap_universe(limit=295, market='KOSPI'):
     """시가총액 상위 목록. market='KOSPI'|'KOSDAQ'|'ALL'
 
-    시가총액 페이지 컬럼 순서(td.number):
-      0 현재가 / 1 전일비 / 2 등락률 / 3 액면가 / 4 시가총액(억) / 5 상장주식수 ...
+    2026-09 네이버 PC 시가총액 페이지(sise_market_sum.naver)가 신규 사이트로 302 리다이렉트되어
+    모바일 JSON API(m.stock.naver.com/api/stocks/marketValue/{시장})로 교체.
+    기존 PC 페이지 정규식과 같은 모수를 유지하기 위해 6자리 숫자 코드만 남긴다(ETF 포함, 신규 영숫자 코드 제외).
 
     ※ 게이트 지표(시장 평균 ATR·발간금지 비중·정배열)는 KOSPI 시총 상위 295종목 기준으로
       산출해온 기존 시계열과의 연속성을 위해 기본값을 KOSPI로 둔다.
     """
-    targets = {'KOSPI': [(0, 'KOSPI')], 'KOSDAQ': [(1, 'KOSDAQ')],
-               'ALL': [(0, 'KOSPI'), (1, 'KOSDAQ')]}[market]
+    targets = {'KOSPI': ['KOSPI'], 'KOSDAQ': ['KOSDAQ'], 'ALL': ['KOSPI', 'KOSDAQ']}[market]
     rows = []
-    for sosok, mname in targets:
-        for page in range(1, 8):
-            html = fetch(f'https://finance.naver.com/sise/sise_market_sum.naver?sosok={sosok}&page={page}')
-            for tr in re.split(r'<tr\s', html):
-                m = re.search(r'code=(\d{6})"[^>]*class="tltle">([^<]+)</a>', tr)
-                if not m:
+    for mname in targets:
+        for page in range(1, 5):
+            txt = fetch(f'https://m.stock.naver.com/api/stocks/marketValue/{mname}?page={page}&pageSize=100',
+                        enc='utf-8')
+            try:
+                stocks = json.loads(txt).get('stocks', [])
+            except ValueError:
+                stocks = []
+            for s in stocks:
+                code = s.get('itemCode', '')
+                cap = s.get('marketValue', '').replace(',', '')
+                if not re.fullmatch(r'\d{6}', code) or not cap.isdigit():
                     continue
-                nums = [re.sub(r'<[^>]+>', '', t).strip().replace(',', '')
-                        for t in re.findall(r'<td class="number">(.*?)</td>', tr, re.S)]
-                if len(nums) < 5 or not nums[4].isdigit():
-                    continue
-                rows.append({'code': m.group(1), 'name': m.group(2).strip(), 'market': mname,
-                             'price': int(nums[0]) if nums[0].isdigit() else 0,
-                             'cap': int(nums[4])})
+                price = s.get('closePrice', '').replace(',', '')
+                rows.append({'code': code, 'name': s.get('stockName', '').strip(), 'market': mname,
+                             'price': int(price) if price.isdigit() else 0,
+                             'cap': int(cap)})
     seen, uniq = set(), []
     for r in sorted(rows, key=lambda x: -x['cap']):
         if r['code'] in seen:
