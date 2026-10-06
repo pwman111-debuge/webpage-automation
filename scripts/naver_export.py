@@ -97,6 +97,8 @@ def strip_noise(body: str) -> str:
             continue
         if re.match(r"^<[A-Z][A-Za-z0-9]*[\s/>]", s):  # <CoupangBanner .../> 류
             continue
+        if s.startswith("{/*"):  # MDX 주석
+            continue
         out.append(line)
     return "\n".join(out)
 

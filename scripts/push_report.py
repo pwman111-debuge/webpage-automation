@@ -1,7 +1,8 @@
 """
 보고서 파일을 stockanalysis 레포로 push하는 스크립트.
-사용법: python -X utf8 scripts/push_report.py <보고서파일경로> "<커밋메시지>"
+사용법: python -X utf8 scripts/push_report.py <보고서파일경로> "<커밋메시지>" [함께 올릴 파일 ...]
 예시:   python -X utf8 scripts/push_report.py content/picks/20260427-genesis-report.mdx "feat: 2026-04-27 단기유망종목"
+        python -X utf8 scripts/push_report.py content/market-analysis/2026-10-07-market-analysis-genesis.mdx "feat: 시황" public/charts/market/2026-10-07-kospi.json public/charts/market/2026-10-07-kosdaq.json
 """
 import sys
 import os
@@ -29,6 +30,7 @@ def main():
 
     report_path = sys.argv[1]          # 예: content/picks/20260427-genesis-report.mdx
     commit_msg  = sys.argv[2]
+    extra_paths = sys.argv[3:]         # 시황 차트 JSON 등 같은 커밋에 넣을 파일
 
     # 절대 경로로 변환
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -46,14 +48,20 @@ def main():
     run(f'git config user.email "{GIT_USER_EMAIL}"', cwd=tmp_dir)
 
     # 보고서 파일 복사 (디렉토리 구조 유지)
-    print(f"[2/5] 파일 복사: {report_path}")
-    dest = os.path.join(tmp_dir, report_path)
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    shutil.copy2(abs_report, dest)
+    for rel in [report_path] + extra_paths:
+        src = os.path.join(root_dir, rel)
+        if not os.path.exists(src):
+            print(f"[오류] 파일 없음: {src}")
+            sys.exit(1)
+        print(f"[2/5] 파일 복사: {rel}")
+        dest = os.path.join(tmp_dir, rel)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copy2(src, dest)
 
     # 커밋 & push
     print(f"[3/5] 커밋 & push...")
-    run(f'git add "{report_path}"', cwd=tmp_dir)
+    for rel in [report_path] + extra_paths:
+        run(f'git add "{rel}"', cwd=tmp_dir)
     run(f'git commit -m "{commit_msg}"', cwd=tmp_dir)
     output = run("git push origin main", cwd=tmp_dir)
 

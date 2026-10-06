@@ -18,8 +18,9 @@ description: "시황 분석 리포트 GitHub 자동 Push 워크플로우"
 
 ### Step 2. Git Push (stockanalysis 레포로 자동 push)
 ```bash
-python -X utf8 scripts/push_report.py content/market-analysis/YYYY-MM-DD-market-analysis-genesis.mdx "feat: YYYY-MM-DD 시황 분석 리포트"
+python -X utf8 scripts/push_report.py content/market-analysis/YYYY-MM-DD-market-analysis-genesis.mdx "feat: YYYY-MM-DD 시황 분석 리포트" public/charts/market/YYYY-MM-DD-kospi.json public/charts/market/YYYY-MM-DD-kosdaq.json
 ```
+> v4.0부터 차트 신호 JSON 두 개를 같은 커밋에 반드시 포함한다(빠지면 사이트 차트가 안 뜸).
 
 ### Step 3. Threads 자동 포스팅
 ```bash

@@ -127,7 +127,7 @@ def extract_points(body: str):
         m = re.match(r"^##\s+(.*)", line)
         if m:
             if head and not skip.search(head):
-                para = next((b.strip() for b in buf if b.strip() and not b.startswith(("#", "|", ">", "-"))), "")
+                para = next((b.strip() for b in buf if b.strip() and not b.startswith(("#", "|", ">", "-", "<", "{"))), "")
                 if para:
                     points.append((head, para))
             head, buf = m.group(1).strip(), []
