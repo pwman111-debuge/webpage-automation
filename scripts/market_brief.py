@@ -533,7 +533,7 @@ def build_mdx(d, title=None):
                 sub = f"{r['amount'] / 1e12:,.2f}조" if r.get("amount") and r["amount"] >= 1e12 else (
                     f"{r['amount'] / 1e8:,.0f}억" if r.get("amount") else "")
             else:
-                sub = f"{r['amount']:+,}억" if r.get("amount") is not None else ""
+                sub = (('+' if r['amount'] >= 0 else '-') + won(r['amount'])) if r.get("amount") is not None else ""
             out.append({"name": r["name"], "sub": sub, "rate": r.get("rate")})
         return out
 
