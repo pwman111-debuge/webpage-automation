@@ -24,7 +24,7 @@
 > - **매달 1일**: 추가로 중기 T-30 + 장기 T-90 복기 (해당 기간 리포트 없으면 자동 생략)
 
 **종목분석(단기1순위) 규칙:**
-- 단기유망종목 보고서의 **섹션 2 첫 번째 종목**(R:R 기준 1순위)을 자동으로 심층 분석
+- 단기 **상세 기록**(`content/picks-log/`)의 **섹션 2 첫 번째 종목**(R:R 기준 1순위)을 자동으로 심층 분석
 - 해당 종목코드를 `종목분석/.agents/workflows/analyze-stock.md` 에 전달하여 즉시 실행
 - 결과물: `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` 저장 후 push + SNS 포스팅
 
@@ -126,7 +126,8 @@ git --git-dir=.git-code push origin main
 | 종류 | 경로 |
 |------|------|
 | 시황분석 | `content/market-analysis/YYYYMMDD-*.mdx` |
-| 단기유망종목 | `content/picks/YYYYMMDD-genesis-report.mdx` |
+| 단기유망종목 (공개 신호등) | `content/picks/YYYYMMDD-genesis-report.mdx` |
+| 단기유망종목 (상세 기록, 사이트 미노출) | `content/picks-log/YYYYMMDD-genesis-log.mdx` |
 | 중기유망종목 | `content/picks/YYYYMMDD-genesis-mid-report.mdx` |
 | 장기유망종목 | `content/picks/YYYYMMDD-genesis-long-report.mdx` |
 | 종목분석 | `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` (영문 소문자·하이픈, 예: `2026-04-25-sejin-heavy.mdx`) |

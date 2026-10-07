@@ -30,6 +30,7 @@ ROOT_FORBIDDEN_NAMES = [
 # 보고서가 저장되어야 하는 올바른 위치
 CORRECT_REPORT_PATHS = {
     "단기": "content/picks/YYYYMMDD-genesis-report.mdx",
+    "단기 상세 기록": "content/picks-log/YYYYMMDD-genesis-log.mdx",
     "중기": "content/picks/YYYYMMDD-genesis-mid-report.mdx",
     "장기": "content/picks/YYYYMMDD-genesis-long-report.mdx",
     "종목분석": "content/stock-reports/YYYY-MM-DD-[종목명].mdx",
