@@ -130,7 +130,9 @@ git --git-dir=.git-code push origin main
 | 단기유망종목 (상세 기록, 사이트 미노출) | `content/picks-log/YYYYMMDD-genesis-log.mdx` |
 | 중기유망종목 | `content/picks/YYYYMMDD-genesis-mid-report.mdx` |
 | 장기유망종목 | `content/picks/YYYYMMDD-genesis-long-report.mdx` |
-| 종목분석 | `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` (영문 소문자·하이픈, 예: `2026-04-25-sejin-heavy.mdx`) |
+| 종목분석 (공개) | `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` (영문 소문자·하이픈, 예: `2026-04-25-sejin-heavy.mdx`) |
+| 종목분석 (상세 기록, 사이트 미노출) | `content/stock-log/YYYY-MM-DD-[english-slug].mdx` |
+| 종목분석 차트 신호 데이터 | `public/charts/stock/YYYY-MM-DD-[티커].json` (`scripts/stock_signal.py`) |
 | 마켓인사이트 | `content/market-insight/YYYYMMDD-[english-slug].mdx` (영문 소문자·하이픈, 예: `20260425-fomc-rate-hold.mdx`) |
 
 ### 워크플로우 파일 보호 규칙

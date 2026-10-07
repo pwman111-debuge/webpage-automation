@@ -34,6 +34,7 @@ CORRECT_REPORT_PATHS = {
     "중기": "content/picks/YYYYMMDD-genesis-mid-report.mdx",
     "장기": "content/picks/YYYYMMDD-genesis-long-report.mdx",
     "종목분석": "content/stock-reports/YYYY-MM-DD-[종목명].mdx",
+    "종목분석 상세 기록": "content/stock-log/YYYY-MM-DD-[종목명].mdx",
     "마켓인사이트": "content/market-insight/YYYYMMDD-[slug].mdx",
 }
 
