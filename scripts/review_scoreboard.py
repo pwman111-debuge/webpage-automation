@@ -2,17 +2,23 @@
 r"""제네시스 투자성과리뷰 v3 — 지난 추천·관심 종목 '성적표' 자동 계산.
 
 2026-10-08 개편(황원장 지시): 성과리뷰 공개 페이지를 쉬운 '성적표'로. 수익률·목표가 도달·위험 기준선 이탈을
-손으로 세지 않고 일봉(KRX 정규장 종가)으로 계산해, 공개 페이지와 상세 기록이 같은 숫자를 쓰게 한다.
+손으로 세지 않고 일봉 종가로 계산해, 공개 페이지와 상세 기록이 같은 숫자를 쓰게 한다.
+일봉은 KRX+NXT 통합 시세라 기준일이 오늘이면 20시까지 종가가 움직인다 → 20시 전 실행은 '잠정' 표시가 붙는다.
+같은 회차 안에서는 한 번 돌린 출력(--json)을 끝까지 쓰고, 다시 돌려 숫자를 바꾸지 않는다.
 
 판정 (모두 종가 기준, 리포트 날짜 다음 거래일부터 기준일까지)
   🎯 목표가 도달  : 종가가 목표가 이상인 첫 날
   🛑 기준선 이탈  : 종가가 위험 기준선(손절가) 이하인 첫 날
   둘 다 있으면 먼저 온 것. 없으면 '진행 중'(📈 플러스 / 📉 마이너스).
+  목표가가 리포트 가격보다 2% 미만 위면 '도달'이 의미 없으므로 목표가 판정을 하지 않는다(결과에 표시).
+  목표가·기준선이 없는 종목(옛 섀도 후보 등)은 '-'로 넣는다 — 그 판정만 건너뛴다. 값을 지어내지 말 것.
   수익률 = 기준일 종가 ÷ 리포트 가격 − 1.  같은 기간 코스피 수익률을 나란히 둔다.
 
 입력
   --log  content/picks-log/YYYYMMDD-genesis-*-log.mdx   (프론트매터 picks: 목록을 읽는다 — v3 상세 기록부터)
   --pick 코드:종목명:리포트일:가격:목표가:기준선[:구분]   (picks: 가 없는 옛 리포트용, 여러 번 가능)
+         종목명에 공백이 있으면 통째로 따옴표: --pick "010120:LS ELECTRIC:2026-10-02:209000:296400:186000"
+         목표가·기준선이 없으면 '-':          --pick 006280:녹십자:2026-10-01:128600:-:-:섀도
   --public : 공개 페이지용 — 구분(kind)이 '섀도'인 행(조건 미달로 담지 않은 후보)을 뺀다
 
 CLI:
@@ -81,7 +87,9 @@ def judge(p, asof):
     k1 = k[k.index <= d1]
     kret = (float(k1.iloc[-1]) / float(k0.iloc[-1]) - 1) * 100 if len(k0) and len(k1) else None
     ev = []
-    if p["target"]:
+    # 목표가가 리포트 가격과 2% 이내면 '도달'이 의미 없다 (예: 목표가 = 종가인 섀도 후보)
+    weak_target = bool(p["target"]) and p["target"] < p["price"] * 1.02
+    if p["target"] and not weak_target:
         hit = win[win >= p["target"]]
         if len(hit):
             ev.append((hit.index[0], "🎯 목표가 도달", float(hit.iloc[0])))
@@ -97,6 +105,8 @@ def judge(p, asof):
     else:
         result = ("📈" if ret > 0 else "📉" if ret < 0 else "➖") + " 진행 중"
         event = None
+    if weak_target:
+        result += " (목표가가 가격과 2% 이내라 도달 판정 제외)"
     return {**p, "days": len(win), "asof": win.index[-1].strftime("%Y-%m-%d"), "now": now, "ret": ret,
             "kospi": kret, "best": (float(win.max()) / p["price"] - 1) * 100,
             "worst": (float(win.min()) / p["price"] - 1) * 100, "event": event, "result": result}
@@ -160,11 +170,17 @@ def main():
         except Exception as e:
             print(f"[{p['name']}] 시세 수집 실패 — 제외 ({e})", file=sys.stderr)
 
+    now = dt.datetime.now()
+    provisional = a.asof == now.date().isoformat() and now.hour < 20
+    if provisional:
+        print(f"[주의] {now:%H:%M} 실행 — 오늘 종가는 20시까지 움직이는 잠정치입니다. 상세 기록에 '잠정'을 표시하고, "
+              "이 출력(--json)을 이 회차 끝까지 그대로 쓰세요.", file=sys.stderr)
+    tag = f", {now:%H:%M} 잠정" if provisional else ""
     for term in TERM_NAME:
         g = [r for r in rows if r["term"] == term]
         if not g:
             continue
-        print(f"=== {TERM_NAME[term]} (기준일 {a.asof}) ===\n")
+        print(f"=== {TERM_NAME[term]} (기준일 {a.asof}{tag}) ===\n")
         print(table(g) + "\n")
         print(stats(g) + "\n")
     if a.json:
