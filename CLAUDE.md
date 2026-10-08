@@ -24,9 +24,11 @@
 > - **매달 1일**: 추가로 중기 T-30 + 장기 T-90 복기 (해당 기간 리포트 없으면 자동 생략)
 
 **종목분석(단기1순위) 규칙:**
-- 단기 **상세 기록**(`content/picks-log/`)의 **섹션 2 첫 번째 종목**(R:R 기준 1순위)을 자동으로 심층 분석
+- 단기 **상세 기록**(`content/picks-log/YYYYMMDD-genesis-log.mdx`)의 **섹션 2 첫 번째 종목**(R:R 기준 1순위)을 자동으로 심층 분석
 - 해당 종목코드를 `종목분석/.agents/workflows/analyze-stock.md` 에 전달하여 즉시 실행
 - 결과물: `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` 저장 후 push + SNS 포스팅
+
+**종목분석(중기1순위 / 장기1순위) 규칙:** 중기·장기 **상세 기록**(`content/picks-log/*-genesis-mid-log.mdx` / `*-genesis-long-log.mdx`)의 종목별 분석 첫 종목을 분석하고, 완료 후 공개 페이지 1순위 섹션에 종목분석 링크를 넣어 재push (중기 5-3 / 장기 6-4)
 
 **Push 규칙:**
 - 각 워크플로우 보고서 생성 완료 즉시 자동으로 GitHub push 실행
@@ -128,11 +130,15 @@ git --git-dir=.git-code push origin main
 | 시황분석 | `content/market-analysis/YYYYMMDD-*.mdx` |
 | 단기유망종목 (공개 신호등) | `content/picks/YYYYMMDD-genesis-report.mdx` |
 | 단기유망종목 (상세 기록, 사이트 미노출) | `content/picks-log/YYYYMMDD-genesis-log.mdx` |
-| 중기유망종목 | `content/picks/YYYYMMDD-genesis-mid-report.mdx` |
-| 장기유망종목 | `content/picks/YYYYMMDD-genesis-long-report.mdx` |
+| 중기유망종목 (공개) | `content/picks/YYYYMMDD-genesis-mid-report.mdx` |
+| 중기유망종목 (상세 기록, 사이트 미노출) | `content/picks-log/YYYYMMDD-genesis-mid-log.mdx` |
+| 장기유망종목 (공개) | `content/picks/YYYYMMDD-genesis-long-report.mdx` |
+| 장기유망종목 (상세 기록, 사이트 미노출) | `content/picks-log/YYYYMMDD-genesis-long-log.mdx` |
+| 투자성과리뷰 (공개 성적표) | `content/picks-feedback/YYYY-MM-DD-performance-review.mdx` |
+| 투자성과리뷰 (상세 기록, 사이트 미노출) | `content/review-log/YYYY-MM-DD-review-log.mdx` |
 | 종목분석 (공개) | `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` (영문 소문자·하이픈, 예: `2026-04-25-sejin-heavy.mdx`) |
 | 종목분석 (상세 기록, 사이트 미노출) | `content/stock-log/YYYY-MM-DD-[english-slug].mdx` |
-| 종목분석 차트 신호 데이터 | `public/charts/stock/YYYY-MM-DD-[티커].json` (`scripts/stock_signal.py`) |
+| 종목분석 차트 신호 데이터 | `public/charts/stock/YYYY-MM-DD-[티커].json` (`scripts/stock_signal.py`, 중기·장기 3종목은 `scripts/picks_signal.py`) |
 | 마켓인사이트 | `content/market-insight/YYYYMMDD-[english-slug].mdx` (영문 소문자·하이픈, 예: `20260425-fomc-rate-hold.mdx`) |
 
 ### 워크플로우 파일 보호 규칙

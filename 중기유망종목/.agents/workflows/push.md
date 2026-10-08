@@ -7,7 +7,7 @@ description: "중기 유망종목 보고서 GitHub 자동 Push 워크플로우"
 보고서 생성 완료 즉시 자동 실행. 사용자 승인 불필요.
 
 ## 배포 정보
-- **저장 경로:** `content/picks/YYYYMMDD-genesis-mid-report.mdx`
+- **저장 경로:** 공개 `content/picks/YYYYMMDD-genesis-mid-report.mdx` + 상세 `content/picks-log/YYYYMMDD-genesis-mid-log.mdx` + 차트 `public/charts/stock/YYYY-MM-DD-코드.json` × 3 (v3.0 — 한 커밋, 차트 JSON 빠지면 사이트 차트 깨짐)
 - **저장소:** `https://github.com/pwman111-debuge/stockanalysis` → Cloudflare Pages 자동 배포
 
 ## 실행 절차
@@ -19,7 +19,7 @@ description: "중기 유망종목 보고서 GitHub 자동 Push 워크플로우"
 
 ### Step 2. Git Push (stockanalysis 레포로 자동 push)
 ```bash
-python -X utf8 scripts/push_report.py content/picks/YYYYMMDD-genesis-mid-report.mdx "feat: YYYY-MM-DD 중기 유망종목 보고서"
+python -X utf8 scripts/push_report.py content/picks/YYYYMMDD-genesis-mid-report.mdx "feat: YYYY-MM-DD 중기 관심 종목 - A/B/C" content/picks-log/YYYYMMDD-genesis-mid-log.mdx public/charts/stock/YYYY-MM-DD-코드1.json public/charts/stock/YYYY-MM-DD-코드2.json public/charts/stock/YYYY-MM-DD-코드3.json
 ```
 
 ### Step 3. Threads 자동 포스팅

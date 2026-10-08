@@ -7,7 +7,7 @@ description: "투자성과 리뷰 보고서 GitHub 자동 Push 워크플로우"
 보고서 생성 완료 즉시 자동 실행. 사용자 승인 불필요.
 
 ## 배포 정보
-- **저장 경로:** `content/picks-feedback/YYYY-MM-DD-performance-review.mdx`
+- **저장 경로:** 공개 `content/picks-feedback/YYYY-MM-DD-performance-review.mdx` + 상세 `content/review-log/YYYY-MM-DD-review-log.mdx` (v3.0 — 한 커밋)
 - **저장소:** `https://github.com/pwman111-debuge/stockanalysis` → Cloudflare Pages 자동 배포
 - **배포 URL:** `https://genesis-report.com/picks/feedback`
 
@@ -20,7 +20,7 @@ description: "투자성과 리뷰 보고서 GitHub 자동 Push 워크플로우"
 
 ### Step 2. Git Push (stockanalysis 레포로 자동 push)
 ```bash
-python -X utf8 scripts/push_report.py content/picks-feedback/YYYY-MM-DD-performance-review.mdx "feat: YYYY-MM-DD 투자성과 리뷰 리포트"
+python -X utf8 scripts/push_report.py content/picks-feedback/YYYY-MM-DD-performance-review.mdx "feat: YYYY-MM-DD 투자성과 리뷰" content/review-log/YYYY-MM-DD-review-log.mdx
 ```
 
 ### Step 3. Threads 자동 포스팅

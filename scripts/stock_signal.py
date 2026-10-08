@@ -42,7 +42,10 @@ _hangul_josa = mb.josa
 def _josa(word, pair="은는"):
     ch = word[-1].upper()
     if "A" <= ch <= "Z" or ch.isdigit():
-        return word + (pair[0] if ch in _EN_BATCHIM else pair[1])
+        last = word.split()[-1]
+        # 4글자 이상 영단어는 단어로 읽는다 (LS ELECTRIC → 일렉트릭은). 3글자 이하는 약어(HMM·SK·LG).
+        batchim = set("BCDGKLMNPT") if len(last) >= 4 and last.isalpha() else _EN_BATCHIM  # NAVER → 네이버는
+        return word + (pair[0] if ch in batchim else pair[1])
     return _hangul_josa(word, pair)
 
 
