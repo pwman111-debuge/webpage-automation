@@ -134,6 +134,7 @@ git --git-dir=.git-code push origin main
 | 장기유망종목 (공개) | `content/picks/YYYYMMDD-genesis-long-report.mdx` |
 | 장기유망종목 (상세 기록, 사이트 미노출) | `content/picks-log/YYYYMMDD-genesis-long-log.mdx` |
 | 모의 포트폴리오 기록 (사이트 미노출) | `content/portfolio-log/YYYY-MM-*.mdx` |
+| 모의 포트폴리오 공개 데이터 | `public/charts/portfolio/YYYY-MM.json` (`/portfolio` 페이지) |
 | 투자성과리뷰 (공개 성적표) | `content/picks-feedback/YYYY-MM-DD-performance-review.mdx` |
 | 투자성과리뷰 (상세 기록, 사이트 미노출) | `content/review-log/YYYY-MM-DD-review-log.mdx` |
 | 종목분석 (공개) | `content/stock-reports/YYYY-MM-DD-[english-slug].mdx` (영문 소문자·하이픈, 예: `2026-04-25-sejin-heavy.mdx`) |

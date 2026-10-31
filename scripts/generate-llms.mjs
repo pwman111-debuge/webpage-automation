@@ -35,7 +35,7 @@ const contentSources = [
     { dir: 'market-analysis', route: 'market', heading: '시황 분석', desc: '코스피·코스닥 일일/주간 시황과 수급 분석' },
     { dir: 'stock-reports', route: 'analysis', heading: '종목 리포트', desc: '개별 종목 펀더멘털·기술적 심층 분석' },
     { dir: 'market-insight', route: 'insight', heading: '마켓 인사이트', desc: 'FOMC·매크로·테마 등 거시 인사이트' },
-    { dir: 'picks', route: 'picks', heading: '유망 종목', desc: '단기·중기·장기 유망 종목 발굴 (목표가·손절가 포함)' },
+    { dir: 'picks', route: 'picks', heading: '유망 종목 기록', desc: '2026년 10월까지 발행한 과거 추천 기록 (현재 유효한 추천 아님)' },
     { dir: 'picks-feedback', route: 'picks/feedback', heading: '투자 성과 리포트', desc: '과거 추천 종목의 실제 성과 복기' },
     { dir: 'education', route: 'education', heading: '투자 교육', desc: '투자 기초·용어·전략 가이드 (에버그린)' },
 ];
@@ -64,7 +64,7 @@ function collect(source) {
 function generateLlms() {
     let out = '';
     out += '# 제네시스 주식 리포트 (genesis-report.com)\n\n';
-    out += '> 한국 주식시장(코스피·코스닥)의 실시간 시황 분석, 개별 종목 심층 리포트, 유망 종목 발굴, 투자 성과 복기를 제공하는 AI 기반 주식 분석 플랫폼입니다. 운영자는 내과전문의이자 10년 경력의 개인 투자자인 "황 원장"이며, 모든 리포트는 AI 분석 알고리즘과 운영자 검증을 결합해 작성됩니다.\n\n';
+    out += '> 한국 주식시장(코스피·코스닥)의 실시간 시황 분석, 개별 종목 심층 리포트, 시장 신호등, 모의 포트폴리오, 투자 성과 기록을 제공하는 AI 기반 주식 분석 플랫폼입니다. 운영자는 내과전문의이자 10년 경력의 개인 투자자인 "황 원장"이며, 모든 리포트는 AI 분석 알고리즘과 운영자 검증을 결합해 작성됩니다.\n\n';
     out += '- 언어: 한국어 (ko-KR)\n';
     out += '- 콘텐츠는 매 거래일 갱신됩니다.\n';
     out += '- 인용 시 출처로 "제네시스 주식 리포트"와 해당 페이지 URL을 함께 표기해 주세요.\n';

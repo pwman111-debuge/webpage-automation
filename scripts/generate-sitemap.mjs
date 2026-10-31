@@ -15,6 +15,7 @@ const staticPages = [
     { url: '/', priority: '1.0', changefreq: 'daily' },
     { url: '/market', priority: '0.8', changefreq: 'daily' },
     { url: '/signal', priority: '0.8', changefreq: 'daily' },
+    { url: '/portfolio', priority: '0.8', changefreq: 'weekly' },
     { url: '/analysis', priority: '0.8', changefreq: 'daily' },
     { url: '/insight', priority: '0.8', changefreq: 'daily' },
     { url: '/picks', priority: '0.8', changefreq: 'daily' },
