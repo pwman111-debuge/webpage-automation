@@ -26,6 +26,10 @@
 
 **투자 성과 리포트:** 매일 보유 종목의 등락과 종목별 차트 신호(주도섹터 `사용법.md`의 "차트 신호" 규칙)를 게시한다. 차트 신호는 참고 표시이며 달 중간 매매는 없다. 절차: `투자성과리뷰/agents/workflows/제네시스.md`. 스크립트: `scripts/portfolio_review.py`
 
+**월말 교체 (매달 마지막 거래일, 20:40 이후):** 주도섹터 점수·모니터가 그날 값인지 확인한 뒤 `../주도섹터/.venv/Scripts/python.exe -X utf8 scripts/portfolio_monthly.py` 로 명단을 확인하고, 황원장에게 보고 후 `--apply --start 다음달첫거래일` 로 저장·push한다. 출력의 [종목분석 대상]이 다음 편입일 종목분석 대상이다.
+
+**사건 편출 기록:** 해당 달 포트폴리오 JSON의 종목에 `exitDate`, `exitPrice`를 적고 `events.json`에 기록한다.
+
 **시작일 시가:** 시작일 장 시작 후 `python -X utf8 scripts/portfolio_review.py --set-open` 실행.
 
 **종목분석 규칙:**

@@ -8,8 +8,8 @@ r"""제네시스 모의 포트폴리오 일일 성과 리포트.
 
 산출: content/picks-feedback/YYYY-MM-DD-performance-review.mdx, public/charts/stock/YYYY-MM-DD-{코드}.json
 
-성과는 시작 시가 대비 종가, 시작 비중 그대로 계산한다(거래비용 미반영).
-여러 달을 잇는 누적 계산은 월말 교체 스크립트가 맡는다.
+성과는 달마다 시작 시가 대비로 계산해 다음 달 시작 시가에서 이어 붙인다(거래비용 미반영).
+사건 편출 종목은 해당 달 holdings에 exitDate·exitPrice를 적으면 그 가격에서 현금으로 멈춘다.
 차트 신호는 주도섹터 규칙을 쓰는 stock_signal.py를 그대로 불러 쓴다. 규칙 복제 금지.
 """
 import argparse
@@ -29,6 +29,11 @@ START_LOG = ROOT / "content" / "portfolio-log"
 THUMBNAIL = "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80"
 
 
+def months():
+    files = sorted(p for p in PORTFOLIO.glob("*.json") if p.stem[:2] == "20")
+    return [json.loads(p.read_text(encoding="utf-8")) for p in files]
+
+
 def latest_path():
     return sorted(p for p in PORTFOLIO.glob("*.json") if p.stem[:2] == "20")[-1]
 
@@ -40,7 +45,7 @@ def set_open():
     log = next(START_LOG.glob(f"{data['month']}-*.mdx"))
     text = log.read_text(encoding="utf-8")
     for h in data["holdings"] + data["compare"]:
-        df = mb.fetch_daily(h["code"], years=1)
+        df = prices(h["code"])
         if day not in df.index:
             sys.exit(f"[오류] {h['name']} {data['startDate']} 시세 없음")
         h["open"] = int(df.loc[day, "open"])
@@ -55,9 +60,15 @@ def pd_day(text):
     return pd.Timestamp(text)
 
 
+def prices(code, cache={}):
+    if code not in cache:
+        cache[code] = mb.fetch_daily(code, years=2)
+    return cache[code]
+
+
 def closes(code, day, start):
-    """(시작 시가 없을 때 쓰는 당일 시가, 어제까지의 비교 종가, 오늘 종가)."""
-    df = mb.fetch_daily(code, years=1)
+    """(구간 첫날 시가, 직전 종가, 오늘 종가)."""
+    df = prices(code)
     if day not in df.index:
         sys.exit(f"[오류] {code} {day.date()} 시세 없음. 휴장일이거나 장 마감 전입니다.")
     held = df.loc[start:day]
@@ -65,10 +76,19 @@ def closes(code, day, start):
 
 
 def value(rows):
-    """오늘 등락과 시작 후 수익률(비중 가중, %)."""
+    """오늘 등락과 이번 달 수익률(비중 가중, %)."""
     now = sum(r["weight"] * r["close"] / r["open"] for r in rows) / 100
     prev = sum(r["weight"] * (r["prev"] or r["open"]) / r["open"] for r in rows) / 100
     return (now / prev - 1) * 100, (now - 1) * 100
+
+
+def month_growth(rows, end):
+    """끝난 달의 성장 배수. 다음 달 시작 시가까지 계산하고, 사건 편출 종목은 편출 가격에서 멈춘다."""
+    return sum(r["weight"] * (r.get("exitPrice") or float(prices(r["code"]).loc[end, "open"])) / r["open"] for r in rows) / 100
+
+
+def compare_rows(month, core):
+    return [core] + [{**c, "weight": 10} for c in month["compare"]]
 
 
 def pct(v):
@@ -85,30 +105,42 @@ def main():
     if a.set_open:
         return set_open()
 
-    data = json.loads(latest_path().read_text(encoding="utf-8"))
     day = pd_day(a.date)
+    done = [m for m in months() if pd_day(m["startDate"]) <= day] or months()[:1]
+    data = done[-1]
+    first_start = pd_day(done[0]["startDate"])
     start = day if a.dry else pd_day(data["startDate"])
-    rows = []
-    for h in data["holdings"]:
+    chain = {"port": 1.0, "core": 1.0, "c5": 1.0}
+    for month, nxt in zip(done, done[1:]):
+        end = pd_day(nxt["startDate"])
+        core_row = next(h for h in month["holdings"] if h["role"] == "코어")
+        chain["port"] *= month_growth(month["holdings"], end)
+        chain["core"] *= month_growth([{**core_row, "weight": 100}], end)
+        chain["c5"] *= month_growth(compare_rows(month, core_row), end)
+
+    def build_row(h):
         first, prev, close = closes(h["code"], day, start)
         opened = h["open"] or (first if a.dry else None)
         if not opened:
             sys.exit("[오류] 시작 시가가 없습니다. --set-open 을 먼저 실행하세요.")
-        rows.append({**h, "open": opened, "prev": prev, "close": close})
+        row = {**h, "open": opened, "prev": prev, "close": close}
+        if h.get("exitPrice") and day >= pd_day(h["exitDate"]):
+            row["prev"] = row["close"] = h["exitPrice"]
+        return row
 
-    alt = data["compare"][0]
-    first, prev, close = closes(alt["code"], day, start)
-    swap = {**alt, "weight": 10, "open": alt["open"] or first, "prev": prev, "close": close}
-    c5 = [r for r in rows if r["role"] != "주도산업"] + [swap]
-    core = [r for r in rows if r["role"] == "코어"]
-    kospi = mb.fetch_daily("KOSPI", years=1)
+    rows = [build_row(h) for h in data["holdings"]]
+    core = next(r for r in rows if r["role"] == "코어")
+    c5 = [core] + [build_row({**c, "weight": 10}) for c in data["compare"]]
+    kospi = prices("KOSPI")
     k_prev, k_now = kospi["close"].loc[:day].iloc[-2:]
-    k_open = float(kospi.loc[start:, "open"].iloc[0])
-    if day == start:  # 시작일의 오늘 등락은 모두 시가 기준으로 맞춘다.
-        k_prev = k_open
-    day_ret, total = value(rows)
-    core_day, core_total = value([{**core[0], "weight": 100}])
-    c5_day, c5_total = value(c5)
+    k_open = float(kospi.loc[first_start:, "open"].iloc[0])
+    if day == start:  # 달 시작일의 오늘 등락은 모두 시가 기준으로 맞춘다.
+        k_prev = float(kospi.loc[day, "open"])
+    day_ret, month_ret = value(rows)
+    core_day, core_month = value([{**core, "weight": 100}])
+    c5_day, c5_month = value(c5)
+    cumulative = lambda key, r: (chain[key] * (1 + r / 100) - 1) * 100
+    total, core_total, c5_total = cumulative("port", month_ret), cumulative("core", core_month), cumulative("c5", c5_month)
     gap = total - core_total
 
     table, charts, files = [], [], []
@@ -127,7 +159,7 @@ def main():
     worst = min(rows, key=lambda r: r["close"] / r["open"])
     summary = (f"오늘 모의 포트폴리오는 {pct(day_ret)}, 시작 후 {pct(total)}입니다. "
                f"같은 기간 KIWOOM 200TR 100%는 {pct(core_total)}로 {abs(gap):.2f}%p {'앞섰' if gap >= 0 else '뒤졌'}습니다.")
-    first_day = chr(10) + "시작일의 오늘 등락은 시가 기준입니다." + chr(10) if day == start else ""
+    first_day = chr(10) + "이번 달 시작일의 오늘 등락은 시가 기준입니다." + chr(10) if day == start else ""
     doc = f'''---
 title: "제네시스 모의 포트폴리오 {m}월 {d}일 성적표 · 오늘 {pct(day_ret)}, 시작 후 {pct(total)}"
 date: "{a.date}"
@@ -146,7 +178,7 @@ thumbnail: "{THUMBNAIL}"
 
 ## 종목별 등락
 {first_day}
-| 종목 | 비중 | 오늘 종가 | 오늘 등락 | 시작 후 | 차트 신호 |
+| 종목 | 비중 | 오늘 종가 | 오늘 등락 | 이번 달 | 차트 신호 |
 | :--- | ---: | ---: | ---: | ---: | :--- |
 {chr(10).join(table)}
 
@@ -154,7 +186,7 @@ thumbnail: "{THUMBNAIL}"
 
 ## 지금까지의 성과
 
-{data["startDate"]} 시가 기준입니다. 거래비용은 반영하지 않았습니다.
+{done[0]["startDate"]} 시가 기준입니다. 거래비용은 반영하지 않았고, 배당은 코어 ETF에만 포함됩니다.
 
 | 구분 | 오늘 | 시작 후 |
 | :--- | ---: | ---: |
