@@ -51,9 +51,6 @@
 | 명령어 | 실행 워크플로우 |
 |--------|--------------|
 | "시황분석 제네시스하자" | 시황분석/workflows/제네시스.md |
-| "단기유망종목 제네시스하자" | 단기유망종목/.agents/workflows/제네시스-단기유망종목.md |
-| "중기유망종목 제네시스하자" | 중기유망종목/.agents/workflows/제네시스-중기유망.md |
-| "장기유망종목 제네시스하자" | 장기유망종목/.agents/workflows/genesis-long-term.md |
 | "종목분석 제네시스하자" | 종목분석/.agents/workflows/analyze-stock.md |
 | "마켓인사이트 제네시스하자" | 마켓인사이트/.agents/workflows/market-insight.md |
 | "투자성과리뷰 제네시스하자" | 투자성과리뷰/agents/workflows/제네시스.md |
