@@ -21,6 +21,8 @@ JUDO = pathlib.Path.home() / "OneDrive" / "바탕 화면" / "주도섹터"
 OUT = ROOT / "public" / "charts" / "signal"
 
 # 주도섹터 jonghap_prep 순서를 따른다: 뒤 단계가 앞 단계 JSON을 읽는다.
+# kospi_earnings.py는 넣지 않는다. 지수 PER과 순이익의 기준이 섞이는 문제를 종합점검에서 손으로
+# 보정(manual_fix)하므로, 다시 실행하면 보정이 지워져 밸류천장이 크게 부풀려진다.
 REFRESH = [
     ["scripts/macro_tracker.py"],
     ["scripts/market_flow_tracker.py"],
@@ -28,7 +30,6 @@ REFRESH = [
     ["scripts/credit_stress.py", "--no-report"],
     ["scripts/credit_gauge.py"],
     ["scripts/m2_tracker.py"],
-    ["scripts/kospi_earnings.py"],
     ["scripts/kospi_ceiling.py"],
     ["scripts/four_act_study.py"],
     ["scripts/cycle_gauge.py"],
@@ -49,6 +50,7 @@ ACTS = {
 }
 ACT_LIGHT = {"3!": "r", "4-1": "r", "3": "y", "4-2": "y", "4-3": "y", "4-4": "y", "4-E": "y"}
 CLS_LIGHT = {"up": "g", "flat": "y", "down": "r"}
+MAX_CEILING_MOVE = 0.10  # 하루 천장 변화가 이보다 크면 입력 오류로 보고 게시하지 않는다.
 BANNED = ("분할", "매수존", "매도존", "신규", "회피", "권고", "자제", "사세요", "파세요")
 
 
@@ -150,6 +152,18 @@ def build():
     }
 
 
+def check_ceiling(data):
+    days = sorted(p for p in OUT.glob("*.json") if p.stem < data["date"]) or sorted(OUT.glob("*.json"))
+    if not days:
+        return
+    prev = json.loads(days[-1].read_text(encoding="utf-8"))
+    old = {x["label"]: x["value"] for i in prev["items"] if i["key"] == "ceiling" for x in i.get("levels", [])}
+    new = {x["label"]: x["value"] for i in data["items"] if i["key"] == "ceiling" for x in i["levels"]}
+    jumps = [f"{k} {old[k]:,}→{v:,}" for k, v in new.items() if k in old and abs(v / old[k] - 1) > MAX_CEILING_MOVE]
+    if jumps:
+        sys.exit(f"[오류] 코스피 천장 급변, 게시 중단: {', '.join(jumps)}. kospi_earnings 보정 여부를 확인할 것")
+
+
 def main():
     if "--refresh" in sys.argv:
         python = JUDO / ".venv" / "Scripts" / "python.exe"
@@ -168,6 +182,7 @@ def main():
     found = [w for w in BANNED if w in text]
     if found:
         sys.exit(f"[오류] 공개 금지 표현 발견: {found}")
+    check_ceiling(data)
     stale = [f"{i['title']} {i['asof']}" for i in data["items"] if str(i["asof"])[:10] < data["date"]]
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / f"{data['date']}.json"
