@@ -37,6 +37,7 @@ CORRECT_REPORT_PATHS = {
     "장기 상세 기록": "content/picks-log/YYYYMMDD-genesis-long-log.mdx",
     "투자성과리뷰": "content/picks-feedback/YYYY-MM-DD-performance-review.mdx",
     "투자성과리뷰 상세 기록": "content/review-log/YYYY-MM-DD-review-log.mdx",
+    "모의 포트폴리오 기록(사이트 미노출)": "content/portfolio-log/YYYY-MM-*.mdx",
     "종목분석": "content/stock-reports/YYYY-MM-DD-[종목명].mdx",
     "종목분석 상세 기록": "content/stock-log/YYYY-MM-DD-[종목명].mdx",
     "마켓인사이트": "content/market-insight/YYYYMMDD-[slug].mdx",
