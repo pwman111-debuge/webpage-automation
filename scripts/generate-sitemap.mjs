@@ -14,6 +14,7 @@ const now = new Date().toISOString().split('T')[0];
 const staticPages = [
     { url: '/', priority: '1.0', changefreq: 'daily' },
     { url: '/market', priority: '0.8', changefreq: 'daily' },
+    { url: '/signal', priority: '0.8', changefreq: 'daily' },
     { url: '/analysis', priority: '0.8', changefreq: 'daily' },
     { url: '/insight', priority: '0.8', changefreq: 'daily' },
     { url: '/picks', priority: '0.8', changefreq: 'daily' },
