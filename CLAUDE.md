@@ -22,7 +22,7 @@
 
 **시장 신호등:** 매일 게시하며 4막 위치를 포함한다. 조언 문구 없이 위치·상태만 표시한다. 절차: `시황분석/workflows/제네시스.md` Step 3-1. 페이지: `/signal`. 데이터: `public/charts/signal/`
 
-**포트폴리오 점검:** `python -X utf8 scripts/portfolio_check.py` 로 위성 종목의 사건 편출 공시를 확인한다. 걸리면 자동 편출하지 말고 원문 확인 후 황원장에게 보고한다. 확정된 변경은 `public/charts/portfolio/events.json`(`date`, `type`, `detail`)에 기록해 `/portfolio` 변경 내역에 게시하고, 그날 투자 성과 리포트에도 한 줄 싣는다.
+**포트폴리오 점검:** `python -X utf8 scripts/portfolio_check.py` 로 위성 종목의 사건 편출 공시를 확인한다. 걸리면 자동 편출하지 말고 원문 확인 후 황원장에게 보고한다. 횡령·배임은 편입 후 새로 공시되고 자기자본의 2.5% 이상일 때만 편출 대상이다. 확정된 변경은 `public/charts/portfolio/events.json`(`date`, `type`, `detail`)에 기록해 `/portfolio` 변경 내역에 게시하고, 그날 투자 성과 리포트에도 한 줄 싣는다.
 
 **투자 성과 리포트:** 매일 보유 종목의 등락과 종목별 차트 신호(주도섹터 `사용법.md`의 "차트 신호" 규칙)를 게시한다. 차트 신호는 참고 표시이며 달 중간 매매는 없다. (개편 4단계 완성 후 적용, 그 전에는 생략)
 

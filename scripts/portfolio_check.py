@@ -4,7 +4,7 @@ r"""제네시스 모의 포트폴리오 일일 점검.
 사용법: python -X utf8 scripts/portfolio_check.py [--days 4]
 
 달 중간에 편출이 생기는 경우는 사건 편출뿐이므로 위성 종목의 공시 제목만 매일 점검한다.
-공시가 걸려도 자동 편출하지 않는다. 원문을 확인한 뒤 public/charts/portfolio/events.json 에 기록한다.
+공시가 걸려도 자동 편출하지 않는다. 횡령·배임은 편입 후 새 공시이고 자기자본의 2.5% 이상인지 원문을 확인한 뒤 public/charts/portfolio/events.json 에 기록한다.
 점수·사이클 편출은 매달 마지막 거래일 점검에서 정한다. 그날이면 알림을 출력한다.
 """
 import datetime
