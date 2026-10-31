@@ -258,7 +258,7 @@ def main():
         [f"편입 {u.name[c]}" for c in new] + [f"편출 {names[c]}({why(c)})" for c in gone])
     events.append({"date": a.date, "type": "월말 교체", "detail": detail})
     events_path.write_text(json.dumps(events, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
-    print(f"\n[완료] {out.relative_to(ROOT).as_posix()}, 변경 내역 기록")
+    print(f"\n[완료] public/charts/portfolio/{out.name}, 변경 내역 기록")
     if new:
         print("[종목분석 대상] " + ", ".join(f"{c}:{u.name[c]}" for c in new))
 
