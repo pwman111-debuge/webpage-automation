@@ -111,9 +111,11 @@ def build():
          "detail": f"외국인 순매수 5일 {signed(f5, '조')}, 20일 {signed(f20, '조')}입니다.",
          "asof": flow["as_of"]},
         {"key": "handover", "title": "고점 손바뀜",
-         "light": "r" if top["handover_on"] else "g",
-         "state": "경보 켜짐" if top["handover_on"] else "경보 없음",
-         "detail": f"고점 근처에서 외국인 물량이 개인에게 넘어가는지 봅니다. 마지막 경보는 {top['last_alarm']}입니다.",
+         "light": ("r" if top["handover_on"] else "g") if top["near"] else None,
+         "state": ("경보 켜짐" if top["handover_on"] else "경보 없음") if top["near"] else "고점권 아님",
+         "detail": ("고점 근처에서 외국인 물량이 개인에게 넘어가는지 봅니다."
+                    if top["near"] else "코스피가 1년 최고가의 5% 안에 있을 때만 판단하는 항목입니다.")
+                   + f" 마지막 경보는 {top['last_alarm']}입니다.",
          "asof": gauge["as_of"]},
         {"key": "chips", "title": "미국 반도체",
          "light": "g" if gate["on"] else "r",
