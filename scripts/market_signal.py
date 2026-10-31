@@ -8,7 +8,7 @@ r"""제네시스 시장 신호등 — 주도섹터 산출물을 공개용 JSON�
 산출: public/charts/signal/YYYY-MM-DD.json (/signal 페이지가 빌드 때 읽음)
 
 공개 원칙: 시장의 위치와 상태만 표시한다. 주도섹터의 조언 문구(action·verdict 문장)는 가져오지 않고,
-값을 이 파일의 중립 문구로 다시 쓴다. 코스피 천장은 지수 목표치로 읽히지 않게 비율만 공개한다.
+값을 이 파일의 중립 문구로 다시 쓴다. 코스피 천장 수치는 지수 전망이 아니라는 안내와 함께 공개한다.
 """
 import json
 import pathlib
@@ -94,10 +94,15 @@ def build():
     hy, ig = credit["axes"]["hy"], credit["axes"]["ig"]
     wti = snap["wti"]
     items = [
-        {"key": "ceiling", "title": "이익·수급 기준선",
+        {"key": "ceiling", "title": "코스피 천장",
          "light": "r" if near else "y" if pct >= 80 else "g",
-         "state": f"기준선의 {pct:.0f}%",
-         "detail": "기업 이익과 수급으로 계산한 기준선 대비 코스피의 위치입니다. 지수 전망이 아닙니다.",
+         "state": f"통합천장의 {pct:.0f}%",
+         "detail": "수급천장은 지금 돈의 흐름, 밸류천장은 기업 이익, 통합천장은 둘을 합친 선입니다. 지수 전망이 아닙니다.",
+         "levels": [
+             {"label": "수급천장", "value": round(ceil["eff_ceiling"])},
+             {"label": "통합천장", "value": round(ceil["ceiling_blended"])},
+             {"label": "밸류천장", "value": round(ceil["ceiling_base"])},
+         ],
          "asof": ceil["as_of"]},
         {"key": "flow", "title": "외국인 수급",
          "light": CLS_LIGHT.get(k["phase_cls"], "y"), "state": clean(k["phase"]),
