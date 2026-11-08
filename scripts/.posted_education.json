@@ -15,8 +15,16 @@
     "linkedin": true,
     "threads": true
   },
+  "meditations-marcus-aurelius": {
+    "linkedin": false,
+    "threads": true
+  },
   "per-pbr-roe": {
     "linkedin": true,
+    "threads": true
+  },
+  "psychology-of-money": {
+    "linkedin": false,
     "threads": true
   },
   "risk-management-basics": {

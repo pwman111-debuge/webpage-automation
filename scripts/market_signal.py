@@ -190,6 +190,10 @@ def main():
     path = OUT / f"{data['date']}.json"
     path.write_text(text + "\n", encoding="utf-8", newline="\n")
     print(f"[완료] {path.relative_to(ROOT).as_posix()} · {data['act']['name']} · {data['count']}")
+    # 4막 기간 차트 데이터(acts.json) — pandas가 필요해 주도섹터 venv로 실행
+    r = subprocess.run([str(JUDO / ".venv" / "Scripts" / "python.exe"), "-X", "utf8", str(ROOT / "scripts" / "signal_acts_chart.py")],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    print(r.stdout.splitlines()[0] if r.returncode == 0 and r.stdout else f"[경고] acts.json 갱신 실패: {r.stderr[-300:]}")
     if stale:
         print("[참고] 기준일이 이전인 항목(해외 시장·발표 시차):", ", ".join(stale))
 
