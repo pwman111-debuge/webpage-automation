@@ -57,8 +57,20 @@ def main():
     codes = ["3" if a == "3!" else a for a in d["act"]]
     runs = segments(codes)
     dates = [t.strftime("%Y-%m-%d") for t in d.index]
+    # 1차 저점(4-2 투매에서 만들어진 저점)·2차 저점(4-4 바닥 다지기 안의 최저 종가)
+    study = json.loads((JUDO / "data" / "four_act_study.json").read_text(encoding="utf-8"))["current"]
+    lows = {}
+    fl = study.get("일차저점일")
+    if fl and fl in dates:
+        lows["first"] = {"date": fl, "value": round(float(d["px"].loc[fl]), 1)}
+        s44 = [r for r in runs if r[0] == "4-4" and dates[r[1]] > fl]
+        if s44:
+            seg = d["px"].iloc[s44[-1][1]:]
+            lows["second"] = {"date": seg.idxmin().strftime("%Y-%m-%d"), "value": round(float(seg.min()), 1),
+                              "confirmed": runs[-1][0] != "4-4"}
     out = {
         "asof": dates[-1],
+        "lows": lows,
         "dates": dates,
         "close": [round(float(v), 1) for v in d["px"]],
         "segments": [
